@@ -39,6 +39,7 @@ IF ($EnableLogging)
 		} Catch {
 			Write-Host "Could not create Log Directory of $LogsDir.
 	Please ensure that this script has Write permissions to this location, or disable logging, and try again.`r`n"
+	Start-Sleep 10
 		}
 	}
 	$RunLog = $LogsDir + "\" + $(get-date -f yyyy-MM-dd-hh-mm) + ".txt"
