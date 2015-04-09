@@ -9,7 +9,7 @@
 	USUS.ps1 -SoftwareRepo "D:\Data\SoftwareRepo" -ConfigDir "D:\Data\Config" -EnableLogging
 #>
 
-param([Parameter(Mandatory=$True)][string]$SoftwareRepo,[Parameter(Mandatory=$True)][string]$ConfigDir,[switch]$EnableLogging)
+param([Parameter(Mandatory=$True)][string]$ConfigDir,[switch]$EnableLogging)
 
 # Define the WebClient
 
@@ -47,6 +47,22 @@ IF ($EnableLogging)
 }
 
 CLS
+
+$Configs = Get-ChildItem $ConfigDir -Exclude *Example*, *Template* | Where { ! $_.PSIsContainer }
+
+IF ($Configs.Count -eq 0)
+{
+	Write-Host "You don't seem to have any base config files specified in $ConfigDir
+Please correct this before continuing.`r`n"
+	Stop-Transcript
+	Exit
+}
+
+ForEach ($Config in $Configs)
+{
+	$ConfigCommand = [IO.File]::ReadAllText($Config.FullName)
+	Invoke-Expression $ConfigCommand
+}
 
 $IncludesDir = $ConfigDir + "\Includes"
 $PackagesDir = $ConfigDir + "\Packages"

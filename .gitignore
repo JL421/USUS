@@ -5,6 +5,9 @@ ehthumbs.db
 #Log Files
 Config/Logs/
 
+#Main Config File
+Config/Config.conf
+
 # Folder config file
 Desktop.ini
 
