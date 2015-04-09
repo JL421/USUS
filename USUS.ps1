@@ -6,7 +6,7 @@
 	Author		: reddit.com/u/JL421
 	Last Update : 2015-04-08
 .EXAMPLE
-	USUS.ps1 -SoftwareRepo "D:\Data\SoftwareRepo" -PackageRepo "D:\Data\Packages"
+	USUS.ps1 -SoftwareRepo "D:\Data\SoftwareRepo" -PackageRepo "D:\Data\Packages" -LogLocation "D:\Data\USUSLogs"
 #>
 
 param([Parameter(Mandatory=$True)][string]$SoftwareRepo,[Parameter(Mandatory=$True)][string]$PackageRepo,[string]$LogLocation)
