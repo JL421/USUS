@@ -9,7 +9,7 @@
 	USUS.ps1 -SoftwareRepo "D:\Data\SoftwareRepo" -PackageRepo "D:\Data\Packages"
 #>
 
-param([Parameter(Mandatory=$True)][string]$SoftwareRepo,[Parameter(Mandatory=$True)][string]$PackageRepo)
+param([Parameter(Mandatory=$True)][string]$SoftwareRepo,[Parameter(Mandatory=$True)][string]$PackageRepo,[string]$LogLocation)
 
 # Define the WebClient
 
@@ -48,7 +48,7 @@ Please create this location or run this script with the credentials required to 
 				{
 					New-Item $LocalRepo -Type Directory -ErrorAction Stop | Out-Null
 				} Catch {
-					Write-Host "Could not create program directory of $LocalRepo.
+					Write-Host "`r`nCould not create program directory of $LocalRepo.
 Please ensure that this script has Write permissions to this location, and try again."
 				} 
 			}
@@ -61,7 +61,7 @@ Please ensure that this script has Write permissions to this location, and try a
 			{
 				New-Item $LocalRepo -Type Directory -ErrorAction Stop | Out-Null
 			} Catch {
-				Write-Host "Could not create program directory of $LocalRepo.
+				Write-Host "`r`nCould not create program directory of $LocalRepo.
 Please ensure that this script has Write permissions to this location, and try again."
 			} 
 		}
@@ -81,12 +81,12 @@ Please ensure that this script has Write permissions to this location, and try a
 		IF ($NewInstaller[0] -eq $True)
 		{
 			$Version = $NewInstaller[3]
-			Write-Host "New Version of $ProgramName Available!"
+			Write-Host "`nNew Version of $ProgramName Available!"
 			Try
 			{
 				Copy-Item $NewInstaller[1] $LocalRepo -Force -ErrorAction Stop
 			} Catch {
-				Write-Host "Could not copy new installer to $LocalRepo.
+				Write-Host "`r`nCould not copy new installer to $LocalRepo.
 Please ensure that this script has Write permissions to this location, and try again."
 			} Finally {
 				IF ($NewInstaller[4])
@@ -108,7 +108,7 @@ Please let them know you want this added!"
 				}
 			} -ArgumentList $NewInstaller[1] | out-null
 		} ELSEIF ($NewInstaller[0] -eq $False) {
-			Write-Host "No New Version of $ProgramName Available"
+			Write-Host "`r`nNo New Version of $ProgramName Available"
 			Start-Job -ScriptBlock {
 				param($FileDelete)& {
 					WHILE (Test-Path $FileDelete)
@@ -154,7 +154,7 @@ Function GetLatestSoftware([string]$CurrentSoftware, [string]$url, [string]$temp
 			{
 				$WebClient.DownloadFile($url,$templocation)
 				} CATCH [System.Net.WebException] {
-					Write-Host "Could not download installer from $url.
+					Write-Host "`r`nCould not download installer from $url.
 Please check that the web server is reachable. The error was:"
 					Write-Host $_.Exception.ToString()
 				}
@@ -196,7 +196,7 @@ Please check that the web server is reachable. The error was:"
 			{
 				$WebClient.DownloadFile($url,$templocation)
 				} CATCH [System.Net.WebException] {
-					Write-Host "Could not download installer from $url.
+					Write-Host "`r`nCould not download installer from $url.
 Please check that the web server is reachable. The error was:"
 					Write-Host $_.Exception.ToString()
 				}
@@ -281,9 +281,30 @@ function Get-FtpDirectory{
 }
 
 
+#Start Logging if Enabled
+
+IF ($LogLocation -ne $Null)
+{
+	IF (!(Test-Path $LogLocation))
+	{
+		Try
+		{
+			New-Item $LogLocation -Type Directory -ErrorAction Stop | Out-Null
+		} Catch {
+			Write-Host "`r`nCould not create program directory of $LogLocation.
+Please ensure that this script has Write permissions to this location, and try again."
+		} 
+	} ELSE {
+		$LogLocation = $LogLocation + "\" + $(get-date -f yyyy-MM-dd-hh-mm) + ".txt"
+		Start-Transcript -Path $LogLocation
+	}
+
+}
+
 #Running Portion
 
 CLS
+
 IF (!(Test-Path $PackageRepo))
 {
 	Write-Host "The Package Repository $PackageRepo
@@ -294,7 +315,7 @@ $Packages = Get-ChildItem $PackageRepo -Exclude *Example*, *Template*
 
 IF ($Packages.Count -eq 0)
 {
-	Write-Host "You don't seem to have any Packages in
+	Write-Host "`r`nYou don't seem to have any Packages in
 $PackageRepo
 Please add some before continuing."
 	Exit
@@ -332,3 +353,4 @@ While ($jobs)
 	start-sleep -seconds 5
 	$jobs = (get-job -state running | Measure-Object).count
 }
+Stop-Transcript
