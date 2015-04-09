@@ -42,7 +42,7 @@ IF ($EnableLogging)
 	Start-Sleep 10
 		}
 	}
-	$RunLog = $LogsDir + "\" + $(get-date -f yyyy-MM-dd-hh-mm) + ".txt"
+	$RunLog = $LogsDir + "\" + $(get-date -f yyyy-MM-dd-HH-mm) + ".txt"
 	Start-Transcript $RunLog
 }
 
@@ -125,7 +125,31 @@ IF ($Packages.Count -le 1)
 $Command = $Command + ")"
 $Updates = Invoke-Expression $Command
 
+$InstallerVersionReportLocation = $SoftwareRepo + "\Installer Versions.txt"
+$InstallerChangeReportLocation = $SoftwareRepo + "\Installer Changes.txt"
+
+"`r`nPackages in Use`r`n-----`r`n" | Out-File $InstallerVersionReportLocation
+"`r`nPackages Updated on Last Run`r`n-----`r`n" | Out-File $InstallerChangeReportLocation
+
 CheckUpdates
+
+"-----`r`nLast Updated - $(get-date -f yyyy-MM-dd-HH-mm)" | Out-File $InstallerVersionReportLocation -Append
+"-----`r`nLast Updated - $(get-date -f yyyy-MM-dd-HH-mm)" | Out-File $InstallerChangeReportLocation -Append
+
+IF ($EmailReport -eq $True)
+{
+	IF (($EmailTo -eq $Null) -Or ($EmailSubject -eq $Null) -Or ($EmailServer -eq $Null) -Or ($EmailFrom -eq $Null))
+	{
+		Write-Host "It looks like you want to send an Email Report, but you are missing some of the required parameters.
+Please correct this before continuing."
+		Break
+	}
+	$EmailBody = [IO.File]::ReadAllText($InstallerChangeReportLocation) + [IO.File]::ReadAllText($InstallerVersionReportLocation)
+		
+	$EmailClient.Send($EmailFrom, $EmailTo, $EmailSubject, $EmailBody)
+}
+
+
 
 $jobs = (get-job -State Running | Measure-Object).count
 IF ($jobs -gt 0)
