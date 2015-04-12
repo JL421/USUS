@@ -91,39 +91,7 @@ ForEach ($Include in $Includes)
 	Invoke-Expression $IncludeCommand
 }
 
-IF (!(Test-Path $PackagesDir))
-{
-	Write-Host "The Package Repository $PackagesDir
-Doesn't seem to exist. Please correct before continuing.`r`n"
-	Exit
-}
-$Packages = Get-ChildItem $PackagesDir -Exclude *Example*, *Template*
-
-IF ($Packages.Count -eq 0)
-{
-	Write-Host "You don't seem to have any Packages in
-$PackageRepo
-Please add some before continuing.`r`n"
-	Exit
-}
-
-$Counter = 0
-$Command = "@("
-ForEach ($Package in $Packages)
-{
-	$Command = $Command + [IO.File]::ReadAllText($Package.FullName)
-	$Counter ++
-	IF ($Packages.Count -ne $Counter)
-	{
-		$Command = $Command + ","
-	}
-}
-IF ($Packages.Count -le 1)
-{
-	$Command = $Command + "@('False','False','False','False','False','False','False','False')"
-}
-$Command = $Command + ")"
-$Updates = Invoke-Expression $Command
+$Updates = Get-Packages
 
 $InstallerVersionReportLocation = $SoftwareRepo + "\Installer Versions.txt"
 $InstallerChangeReportLocation = $SoftwareRepo + "\Installer Changes.txt"
