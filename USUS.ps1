@@ -6,7 +6,7 @@
 	Author		: reddit.com/u/JL421
 	Last Update : 2015-04-08
 .EXAMPLE
-	USUS.ps1 -SoftwareRepo "D:\Data\SoftwareRepo" -ConfigDir "D:\Data\Config" -EnableLogging
+	USUS.ps1 -SoftwareRepo "D:\Data\SoftwareRepo" -ConfigDir "D:\Data\Config" -EnableLogging -ForceDeploymentPackage
 #>
 
 param([Parameter(Mandatory=$True)][string]$ConfigDir,[switch]$EnableLogging, [switch]$ForceDeploymentPackage)
