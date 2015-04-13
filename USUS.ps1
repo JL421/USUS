@@ -9,7 +9,7 @@
 	USUS.ps1 -SoftwareRepo "D:\Data\SoftwareRepo" -ConfigDir "D:\Data\Config" -EnableLogging
 #>
 
-param([Parameter(Mandatory=$True)][string]$ConfigDir,[switch]$EnableLogging)
+param([Parameter(Mandatory=$True)][string]$ConfigDir,[switch]$EnableLogging, [switch]$ForceDeploymentPackage)
 
 # Define the WebClient
 
@@ -99,7 +99,7 @@ $InstallerChangeReportLocation = $SoftwareRepo + "\Installer Changes.txt"
 "`r`nPackages in Use`r`n-----`r`n" | Out-File $InstallerVersionReportLocation
 "`r`nPackages Updated on Last Run`r`n-----`r`n" | Out-File $InstallerChangeReportLocation
 
-CheckUpdates
+ProcessPackages
 
 "-----`r`nLast Updated - $(get-date -f yyyy-MM-dd-HH-mm)" | Out-File $InstallerVersionReportLocation -Append
 "-----`r`nLast Updated - $(get-date -f yyyy-MM-dd-HH-mm)" | Out-File $InstallerChangeReportLocation -Append
