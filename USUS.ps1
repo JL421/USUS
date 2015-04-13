@@ -6,10 +6,10 @@
 	Author		: reddit.com/u/JL421
 	Last Update : 2015-04-08
 .EXAMPLE
-	USUS.ps1 -SoftwareRepo "D:\Data\SoftwareRepo" -ConfigDir "D:\Data\Config" -EnableLogging
+	USUS.ps1 -SoftwareRepo "D:\Data\SoftwareRepo" -ConfigDir "D:\Data\Config" -EnableLogging -ForceDeploymentPackage
 #>
 
-param([Parameter(Mandatory=$True)][string]$ConfigDir,[switch]$EnableLogging)
+param([Parameter(Mandatory=$True)][string]$ConfigDir,[switch]$EnableLogging, [switch]$ForceDeploymentPackage)
 
 # Define the WebClient
 
@@ -91,39 +91,7 @@ ForEach ($Include in $Includes)
 	Invoke-Expression $IncludeCommand
 }
 
-IF (!(Test-Path $PackagesDir))
-{
-	Write-Host "The Package Repository $PackagesDir
-Doesn't seem to exist. Please correct before continuing.`r`n"
-	Exit
-}
-$Packages = Get-ChildItem $PackagesDir -Exclude *Example*, *Template*
-
-IF ($Packages.Count -eq 0)
-{
-	Write-Host "You don't seem to have any Packages in
-$PackageRepo
-Please add some before continuing.`r`n"
-	Exit
-}
-
-$Counter = 0
-$Command = "@("
-ForEach ($Package in $Packages)
-{
-	$Command = $Command + [IO.File]::ReadAllText($Package.FullName)
-	$Counter ++
-	IF ($Packages.Count -ne $Counter)
-	{
-		$Command = $Command + ","
-	}
-}
-IF ($Packages.Count -le 1)
-{
-	$Command = $Command + "@('False','False','False','False','False','False','False','False')"
-}
-$Command = $Command + ")"
-$Updates = Invoke-Expression $Command
+$Updates = Get-Packages
 
 $InstallerVersionReportLocation = $SoftwareRepo + "\Installer Versions.txt"
 $InstallerChangeReportLocation = $SoftwareRepo + "\Installer Changes.txt"
@@ -131,7 +99,7 @@ $InstallerChangeReportLocation = $SoftwareRepo + "\Installer Changes.txt"
 "`r`nPackages in Use`r`n-----`r`n" | Out-File $InstallerVersionReportLocation
 "`r`nPackages Updated on Last Run`r`n-----`r`n" | Out-File $InstallerChangeReportLocation
 
-CheckUpdates
+ProcessPackages
 
 "-----`r`nLast Updated - $(get-date -f yyyy-MM-dd-HH-mm)" | Out-File $InstallerVersionReportLocation -Append
 "-----`r`nLast Updated - $(get-date -f yyyy-MM-dd-HH-mm)" | Out-File $InstallerChangeReportLocation -Append
