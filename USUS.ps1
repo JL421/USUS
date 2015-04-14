@@ -4,7 +4,7 @@
 .NOTES
 	File Name	: USUS.ps1
 	Author		: reddit.com/u/JL421
-	Last Update : 2015-04-08
+	Last Update : 2015-04-13
 .EXAMPLE
 	USUS.ps1 -SoftwareRepo "D:\Data\SoftwareRepo" -ConfigDir "D:\Data\Config" -EnableLogging -ForceDeploymentPackage
 #>
