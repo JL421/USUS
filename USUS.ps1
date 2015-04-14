@@ -131,4 +131,7 @@ While ($jobs)
 	start-sleep -seconds 5
 	$jobs = (get-job -state running | Measure-Object).count
 }
-Stop-Transcript
+IF($EnableLogging)
+{
+	Stop-Transcript
+}
