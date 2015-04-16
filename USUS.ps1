@@ -9,7 +9,7 @@
 	USUS.ps1 -SoftwareRepo "D:\Data\SoftwareRepo" -ConfigDir "D:\Data\Config" -EnableLogging -ForceDeploymentPackage
 #>
 
-param([Parameter(Mandatory=$True)][string]$ConfigDir,[switch]$EnableLogging, [switch]$ForceDeploymentPackage)
+param([Parameter(Mandatory=$True)][string]$ConfigDir, [switch]$ForceDeploymentPackage)
 
 # Define the WebClient
 
@@ -19,6 +19,9 @@ $WebClient = New-Object System.Net.WebClient
 
 CLS
 
+
+#Check that the Config Directory Exists
+
 IF (!(Test-Path $ConfigDir))
 {
 	Write-Host "Your Config Directory $ConfigDir
@@ -27,26 +30,8 @@ Doesn't seem to exist, please correct this before continuing.`r`n"
 	Exit
 }
 
-$LogsDir = $ConfigDir + "\Logs"
 
-IF ($EnableLogging)
-{
-	IF (!(Test-Path $LogsDir))
-	{
-		Try
-		{
-			New-Item $LogsDir -Type Directory -ErrorAction Stop | Out-Null
-		} Catch {
-			Write-Host "Could not create Log Directory of $LogsDir.
-	Please ensure that this script has Write permissions to this location, or disable logging, and try again.`r`n"
-	Start-Sleep 10
-		}
-	}
-	$RunLog = $LogsDir + "\" + $(get-date -f yyyy-MM-dd-HH-mm) + ".txt"
-	Start-Transcript $RunLog
-}
-
-CLS
+#Import Config File - Essentially a list of variables
 
 $Configs = Get-ChildItem $ConfigDir -Exclude *Example*, *Template* | Where { ! $_.PSIsContainer }
 
@@ -54,7 +39,6 @@ IF ($Configs.Count -eq 0)
 {
 	Write-Host "You don't seem to have any base config files specified in $ConfigDir
 Please correct this before continuing.`r`n"
-	Stop-Transcript
 	Exit
 }
 
@@ -64,16 +48,34 @@ ForEach ($Config in $Configs)
 	Invoke-Expression $ConfigCommand
 }
 
+
+#Verify $SoftwareRepo
+
+IF (!(Test-Path $SoftwareRepo))
+{
+	CLS
+	Write-Host "Software Repository $SoftwareRepo dosen't seem to exist.
+Please create this location or run this script with the credentials required to access it.`r`n"
+	Exit
+}
+
+#Define the Includes and Packages directories
+
 $IncludesDir = $ConfigDir + "\Includes"
 $PackagesDir = $ConfigDir + "\Packages"
+
+
+#Test that the Includes Directory Exists
 
 IF (!(Test-Path $IncludesDir))
 {
 	Write-Host "Your Includes Directory $IncludesDir
 Doesn't seem to exist, please correct this before continuing.`r`n"
-	Start-Sleep 10
 	Exit
 }
+
+
+#Import the Includes - Functions
 
 $Includes = Get-ChildItem $IncludesDir -Exclude *Example*, *Template*
 
@@ -81,7 +83,6 @@ IF ($Includes.Count -eq 0)
 {
 	Write-Host "You don't seem to have any Includes in $IncludesDir
 Please correct this before continuing.`r`n"
-	Stop-Transcript
 	Exit
 }
 
@@ -91,7 +92,13 @@ ForEach ($Include in $Includes)
 	Invoke-Expression $IncludeCommand
 }
 
+
+#Get the packages for update checking
+
 $Updates = Get-Packages
+
+
+#Setup the Update Logs
 
 $InstallerVersionReportLocation = $SoftwareRepo + "\Installer Versions.txt"
 $InstallerChangeReportLocation = $SoftwareRepo + "\Installer Changes.txt"
@@ -99,10 +106,19 @@ $InstallerChangeReportLocation = $SoftwareRepo + "\Installer Changes.txt"
 "`r`nPackages in Use`r`n-----`r`n" | Out-File $InstallerVersionReportLocation
 "`r`nPackages Updated on Last Run`r`n-----`r`n" | Out-File $InstallerChangeReportLocation
 
+
+#Down the rabbit hole of interlinking functions, calling this function does almost all of the work of the entire script (Note: Break this up to be more modular)
+
 ProcessPackages
+
+
+#Close the Update Logs
 
 "-----`r`nLast Updated - $(get-date -f yyyy-MM-dd-HH-mm)" | Out-File $InstallerVersionReportLocation -Append
 "-----`r`nLast Updated - $(get-date -f yyyy-MM-dd-HH-mm)" | Out-File $InstallerChangeReportLocation -Append
+
+
+#Send the Email Report (If everything was defined correctly)
 
 IF ($EmailReport -eq $True)
 {
@@ -118,6 +134,7 @@ Please correct this before continuing."
 }
 
 
+#Wait for the Temporary Installer cleanup to finish
 
 $jobs = (get-job -State Running | Measure-Object).count
 IF ($jobs -gt 0)
@@ -131,7 +148,5 @@ While ($jobs)
 	start-sleep -seconds 5
 	$jobs = (get-job -state running | Measure-Object).count
 }
-IF($EnableLogging)
-{
-	Stop-Transcript
-}
+
+#End
