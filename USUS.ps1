@@ -59,6 +59,14 @@ Please create this location or run this script with the credentials required to 
 	Exit
 }
 
+
+#If one of the packages requiring a batch file is specified, enable batch file creation
+
+IF ($PDQ -Or $SFX)
+{
+	$BatchFiles = $True
+}
+
 #Define the Includes and Packages directories
 
 $IncludesDir = $ConfigDir + "\Includes"
