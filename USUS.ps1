@@ -114,11 +114,11 @@ $InstallerChangeReportLocation = $SoftwareRepo + "\Installer Changes.txt"
 "`r`nPackages in Use`r`n-----`r`n" | Out-File $InstallerVersionReportLocation
 "`r`nPackages Updated on Last Run`r`n-----`r`n" | Out-File $InstallerChangeReportLocation
 
-
 #Down the rabbit hole of interlinking functions, calling this function does almost all of the work of the entire script (Note: Break this up to be more modular)
 
-ProcessPackages
+$UpdateResults = ProcessPackages
 
+$UpdateResults = Invoke-Expression $UpdateResults
 
 #Close the Update Logs
 
@@ -136,9 +136,32 @@ IF ($EmailReport -eq $True)
 Please correct this before continuing."
 		Break
 	}
-	$EmailBody = [IO.File]::ReadAllText($InstallerChangeReportLocation) + [IO.File]::ReadAllText($InstallerVersionReportLocation)
-		
-	$EmailClient.Send($EmailFrom, $EmailTo, $EmailSubject, $EmailBody)
+	
+	$EmailBody = "Package Report:<p>"
+	
+	ForEach ($Update in $UpdateResults)
+	{
+		$EmailBody = $EmailBody + "<br>" + $Update[0] + " is on version "
+		IF ($Update[2] -eq $True)
+		{
+			$EmailBody = $EmailBody + "<font color=`"red`">" + $Update[1] + "</font>"
+		} ELSE {
+			$EmailBody = $EmailBody + "<font color=`"green`">" + $Update[1] + "</font>"
+		}
+	}
+	$EmailBody = $EmailBody + "<p><font color=`"red`">Red Versions</font> Have been updated.<br><font color=`"green`">Green Versions</font> Have Not been updated."
+	
+	$EmailMessage = New-Object System.Net.Mail.MailMessage
+	$EmailMessage.From = $EmailFrom
+	$EmailTo = $EmailTo.Split(",")
+	ForEach ($Address in $EmailTo)
+	{
+		$EmailMessage.To.Add($Address)
+	}
+	$EmailMessage.Subject = $EmailSubject
+	$EmailMessage.IsBodyHtml = $True
+	$EmailMessage.Body = $EmailBody
+	$EmailClient.Send($EmailMessage)
 }
 
 
