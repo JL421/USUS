@@ -119,64 +119,16 @@ $InstallerChangeReportLocation = $SoftwareRepo + "\Installer Changes.txt"
 "`r`nPackages in Use`r`n-----`r`n" | Out-File $InstallerVersionReportLocation
 "`r`nPackages Updated on Last Run`r`n-----`r`n" | Out-File $InstallerChangeReportLocation
 
-#Down the rabbit hole of interlinking functions, calling this function does almost all of the work of the entire script (Note: Break this up to be more modular)
+#Run the main function that processes the update packages and returns an array of updates processed
 
-$UpdateResults = ProcessPackages
-
-$UpdateResults = Invoke-Expression $UpdateResults
-
-#Close the Update Logs
-
-"-----`r`nLast Updated - $TimeDateString" | Out-File $InstallerVersionReportLocation -Append
-"-----`r`nLast Updated - $TimeDateString" | Out-File $InstallerChangeReportLocation -Append
+$UpdateResults = ProcessPackages | Invoke-Expression
 
 
 #Send the Email Report (If everything was defined correctly)
 
 IF ($EmailReport -eq $True)
 {
-	IF (($EmailTo -eq $Null) -Or ($EmailSubject -eq $Null) -Or ($EmailServer -eq $Null) -Or ($EmailFrom -eq $Null))
-	{
-		Write-Host "It looks like you want to send an Email Report, but you are missing some of the required parameters.
-Please correct this before continuing."
-		Break
-	}
-	
-	$EmailBody = "Package Report:<p>"
-	$Sendonnewversion = $False
-	
-	ForEach ($Update in $UpdateResults)
-	{
-		$EmailBody = $EmailBody + "<br>" + $Update[0] + " is on version "
-		IF ($Update[2] -eq $True)
-		{
-			$EmailBody = $EmailBody + "<font color=`"red`">" + $Update[1] + "</font>"
-			$Sendonnewversion = $True
-		} ELSE {
-			$EmailBody = $EmailBody + "<font color=`"green`">" + $Update[1] + "</font>"
-		}
-	}
-	$EmailBody = $EmailBody + "<p><font color=`"red`">Red Versions</font> Have been updated.<br><font color=`"green`">Green Versions</font> Have Not been updated."
-	
-	$EmailMessage = New-Object System.Net.Mail.MailMessage
-	$EmailMessage.From = $EmailFrom
-	$EmailTo = $EmailTo.Split(",")
-	ForEach ($Address in $EmailTo)
-	{
-		$EmailMessage.To.Add($Address)
-	}
-	$EmailMessage.Subject = $EmailSubject
-	$EmailMessage.IsBodyHtml = $True
-	$EmailMessage.Body = $EmailBody
-	IF ($EmailOnNewVersionOnly -eq $True)
-	{
-		IF ($Sendonnewversion -eq $True)
-		{
-			$EmailClient.Send($EmailMessage)
-		}
-	} ELSE {
-		$EmailClient.Send($EmailMessage)
-	}
+	EmailReport
 }
 
 
