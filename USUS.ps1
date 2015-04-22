@@ -143,6 +143,7 @@ Please correct this before continuing."
 	}
 	
 	$EmailBody = "Package Report:<p>"
+	$Sendonnewversion = $False
 	
 	ForEach ($Update in $UpdateResults)
 	{
@@ -150,6 +151,7 @@ Please correct this before continuing."
 		IF ($Update[2] -eq $True)
 		{
 			$EmailBody = $EmailBody + "<font color=`"red`">" + $Update[1] + "</font>"
+			$Sendonnewversion = $True
 		} ELSE {
 			$EmailBody = $EmailBody + "<font color=`"green`">" + $Update[1] + "</font>"
 		}
@@ -166,7 +168,15 @@ Please correct this before continuing."
 	$EmailMessage.Subject = $EmailSubject
 	$EmailMessage.IsBodyHtml = $True
 	$EmailMessage.Body = $EmailBody
-	$EmailClient.Send($EmailMessage)
+	IF ($EmailOnNewVersionOnly -eq $True)
+	{
+		IF ($Sendonnewversion -eq $True)
+		{
+			$EmailClient.Send($EmailMessage)
+		}
+	} ELSE {
+		$EmailClient.Send($EmailMessage)
+	}
 }
 
 
