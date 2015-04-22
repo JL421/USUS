@@ -4,7 +4,7 @@
 .NOTES
 	File Name	: USUS.ps1
 	Author		: reddit.com/u/JL421
-	Last Update : 2015-04-21
+	Last Update : 2015-04-22
 .EXAMPLE
 	USUS.ps1 -SoftwareRepo "D:\Data\SoftwareRepo" -ConfigDir "D:\Data\Config" -ForceDeploymentPackage
 #>
@@ -106,6 +106,11 @@ ForEach ($Include in $Includes)
 $Updates = Get-Packages
 
 
+#Miscellaneous Variables
+
+$TimeDateString = $(get-date -f yyyy-MM-dd-HH:mm)
+
+
 #Setup the Update Logs
 
 $InstallerVersionReportLocation = $SoftwareRepo + "\Installer Versions.txt"
@@ -122,8 +127,8 @@ $UpdateResults = Invoke-Expression $UpdateResults
 
 #Close the Update Logs
 
-"-----`r`nLast Updated - $(get-date -f yyyy-MM-dd-HH-mm)" | Out-File $InstallerVersionReportLocation -Append
-"-----`r`nLast Updated - $(get-date -f yyyy-MM-dd-HH-mm)" | Out-File $InstallerChangeReportLocation -Append
+"-----`r`nLast Updated - $TimeDateString" | Out-File $InstallerVersionReportLocation -Append
+"-----`r`nLast Updated - $TimeDateString" | Out-File $InstallerChangeReportLocation -Append
 
 
 #Send the Email Report (If everything was defined correctly)
