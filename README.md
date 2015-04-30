@@ -21,3 +21,53 @@ USUS gives you more control over what you bring into your environment, while all
 
  * It doesn't cost you anything
    - Though submitting USUS packages to /r/USUScript is appreciated.
+
+
+-----
+
+##Running the Script
+
+ - Create a Config.conf and place it inside of your ConfigDir (Start with the [Template](https://raw.githubusercontent.com/JL421/USUS/master/Config/Template.conf))
+
+ - Run the script from command line, or create a scheduled task to keep your installers up to date automatically.
+
+    Usage: USUS.ps1 -ConfigDir [Your ConfigDirectory Path] [-ForceDeploymentPackage]
+
+    Required Flags :
+     -ConfigDir    This is where all of the parts of the script live.
+    This currently contains the PackageRepo, IncludesDir, and Base Config
+
+    Optional Flags :
+     -ForceDeploymentPackage This flag forces Deployment Packages to be rebuilt on every run.
+
+
+As of now, the script is unsigned, this may change in the future, depending on if it's a big request.
+
+As a result, there are two ways to run the script:
+
+1. **Recommended** : `Powershell.exe -ExecutionPolicy Bypass -File [Path to Script] -ConfigDir [Path to Config Directory]`
+ * This runs only the script in Bypass mode, bypassing the need for a signed script, but still preventing other unsigned scripts from running.
+2. Globally setting Powershell's Execution Policy to Bypass.
+ * **Highly Unrecommended**
+
+-----
+
+## Adding/Modifying Packages
+
+Adding Packages is easy, either create one from the [Template](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/Template.conf), or grab one from the community. Then just place it into your Config\Packages Directory.
+
+-----
+##Pre-Built Packages
+
+  * 7 zip - [32 Bit MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/7Zip.conf) - [64 Bit MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/7Zipx64.conf)
+  * [Adobe Air](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/AdobeAir.conf)
+  * [Adobe Reader](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/AdobeReader.conf)
+  * [FileZilla](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/FileZilla.conf)
+  * [Firefox](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/Firefox.conf)
+  * [Firefox ESR](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/FirefoxESR.conf) - /u/Cyrandir
+  * [Flash Player (Firefox)](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/FlashPlayer-Firefox.conf) - Must provide your own Distribution Link (http://www.adobe.com/products/players/flash-player-distribution.html)
+  * [Flash Player (IE)](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/FlashPlayer-IE.conf) - Must provide your own Distribution Link (http://www.adobe.com/products/players/flash-player-distribution.html)
+  * Google Chrome - [64 Bit MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/GoogleChrome-x64MSI.conf)
+  * Shockwave -  [MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/Shockwave.conf) -  /u/Cyrandir
+  * Skype - [MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/Skype.conf) - /u/Cyrandir
+  * VLC - [32 Bit](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/VLC.conf) - [64 Bit](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/VLCx64.conf)
