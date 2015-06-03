@@ -59,15 +59,15 @@ Adding Packages is easy, either create one from the [Template](https://raw.githu
 -----
 ##Pre-Built Packages
 
-  * 7 zip - [32 Bit MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/7Zip.conf) - [64 Bit MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/7Zipx64.conf)
-  * [Adobe Air](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/AdobeAir.conf)
-  * [Adobe Reader](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/AdobeReader.conf)
-  * [FileZilla](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/FileZilla.conf)
-  * [Firefox](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/Firefox.conf)
+  * 7 zip - [32 Bit MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/7Zip.conf) - [64 Bit MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/7Zipx64.conf)
+  * [Adobe Air](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/AdobeAir.conf)
+  * [Adobe Reader](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/AdobeReader.conf)
+  * [FileZilla](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/FileZilla.conf)
+  * [Firefox](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/Firefox.conf)
   * [Firefox ESR](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/FirefoxESR.conf) - /u/Cyrandir
-  * [Flash Player (Firefox)](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/FlashPlayer-Firefox.conf) - Must provide your own Distribution Link (http://www.adobe.com/products/players/flash-player-distribution.html)
-  * [Flash Player (IE)](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/FlashPlayer-IE.conf) - Must provide your own Distribution Link (http://www.adobe.com/products/players/flash-player-distribution.html)
-  * Google Chrome - [64 Bit MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/GoogleChrome-x64MSI.conf)
+  * [Flash Player (Firefox)](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/FlashPlayer-Firefox.conf) - Must provide your own Distribution Link (http://www.adobe.com/products/players/flash-player-distribution.html)
+  * [Flash Player (IE)](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/FlashPlayer-IE.conf) - Must provide your own Distribution Link (http://www.adobe.com/products/players/flash-player-distribution.html)
+  * Google Chrome - [64 Bit MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/GoogleChrome-x64MSI.conf)
   * Shockwave -  [MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/Shockwave.conf) -  /u/Cyrandir
   * Skype - [MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/Skype.conf) - /u/Cyrandir
-  * VLC - [32 Bit](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/VLC.conf) - [64 Bit](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/VLCx64.conf)
+  * VLC - [32 Bit](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/VLC.conf) - [64 Bit](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/VLCx64.conf)
