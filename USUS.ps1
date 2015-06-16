@@ -6,7 +6,7 @@
 	Author		: reddit.com/u/JL421
 	Last Update : 2015-04-22
 .EXAMPLE
-	USUS.ps1 -SoftwareRepo "D:\Data\SoftwareRepo" -ConfigDir "D:\Data\Config" -ForceDeploymentPackage
+	USUS.ps1 -ConfigDir "D:\Data\Config" -ForceDeploymentPackage
 #>
 
 param([Parameter(Mandatory=$True)][string]$ConfigDir, [switch]$ForceDeploymentPackage)
