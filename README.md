@@ -1,8 +1,3 @@
-# USUS
-The Ultimate Software Update Script - Gets software from the source, then packages it for deployment
-
------
-
 ##What is this?
 
 USUS (Ultimate Software Update Script) is a Windows Powershell Script (v2.0+) that will check for updated installers for just about any installer. If you give it a set of packages to run with, it'll make sure your Installers are on the latest version, and package them up in a convenient format. (Batch, Lansweeper, PDQ Deploy, Self-Extracting Installer)
@@ -20,25 +15,60 @@ USUS gives you more control over what you bring into your environment, while all
    - USUS integrates with multiple deployment options (Good ole batch files, Lansweeper, PDQ Deploy), with support for automatic importation coming soon.
 
  * It doesn't cost you anything
-   - Though submitting USUS packages to /r/USUScript is appreciated.
+   - Though donations or submitting USUS packages to /r/USUScript are appreciated.
 
+-----
+
+##Screenshots
+
+[Run with Updates](http://i.imgur.com/7KfnWlH.png) | [Run Without Updates](http://i.imgur.com/XjbsUTO.png) | [Email Report Example](http://i.imgur.com/vug7Un3.png) | [Change Log Example](http://i.imgur.com/04r6Olc.png) | [Current Version Log Example](http://i.imgur.com/TqKnYPF.png)
+
+-----
+
+##Current Features
+**v1.4** (2015-07-06)
+
+ - Assisted Setup
+ - Email Reporting
+ - Version Management
+ - Batch, Lansweeper, PDQ, and Self Extracting Installer support
+
+-----
+
+##Upgrade Notes
+
+ - Should be plug and play with v1.3
+ - Moved the Packages to their own repository
+ - Updated Flash for Adobe's new server
+ - Sorry for the delay, I've been neglecting this because it just works. The update is small because I forced myself to put something out to get me back into this
+
+-----
+
+##Download
+
+ * [USUS @ Github](https://github.com/JL421/USUS) - [Zip](https://github.com/JL421/USUS/archive/master.zip)
+ * [USUS @ Mirror](https://www.jasonlorsung.com/download/114/)
+ * [Packages @ Github](https://github.com/JL421/USUS-Packages)
 
 -----
 
 ##Running the Script
 
- - Create a Config.conf and place it inside of your ConfigDir (Start with the [Template](https://raw.githubusercontent.com/JL421/USUS/master/Config/Template.conf))
+ - Run the script from command line, and it will walk you through an initial setup
+
+        powershell.exe -ExecutionPolicy Bypass -File "Path to USUS.ps1"
 
  - Run the script from command line, or create a scheduled task to keep your installers up to date automatically.
 
-    Usage: USUS.ps1 -ConfigDir [Your ConfigDirectory Path] [-ForceDeploymentPackage]
+        Usage: USUS.ps1 -ConfigDir [Your ConfigDirectory Path] [-ForceDeploymentPackage] [-InitialSetup]
 
-    Required Flags :
-     -ConfigDir    This is where all of the parts of the script live.
-    This currently contains the PackageRepo, IncludesDir, and Base Config
-
-    Optional Flags :
-     -ForceDeploymentPackage This flag forces Deployment Packages to be rebuilt on every run.
+        Required Flags :
+         -ConfigDir    This is where all of the parts of the script live.
+        This currently contains the PackageRepo, IncludesDir, and Base Config
+    
+        Optional Flags :
+         -ForceDeploymentPackage This flag forces Deployment Packages to be rebuilt on every run.
+         -InitialSetup This flag reruns the assisted setup, for easy editing of Config files
 
 
 As of now, the script is unsigned, this may change in the future, depending on if it's a big request.
@@ -54,20 +84,80 @@ As a result, there are two ways to run the script:
 
 ## Adding/Modifying Packages
 
-Adding Packages is easy, either create one from the [Template](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/Template.conf), or grab one from the community. Then just place it into your Config\Packages Directory.
+Adding Packages is easy, either create one from the Template [GitHub](https://github.com/JL421/USUS-Packages/blob/master/Template.conf) - [Mirror](https://www.jasonlorsung.com/download/108/), or grab one from the community. Then just place it into your Config\Packages Directory.
 
 -----
 ##Pre-Built Packages
 
-  * 7 zip - [32 Bit MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/7Zip.conf) - [64 Bit MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/7Zipx64.conf)
-  * [Adobe Air](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/AdobeAir.conf)
-  * [Adobe Reader](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/AdobeReader.conf)
-  * [FileZilla](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/FileZilla.conf)
-  * [Firefox](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/Firefox.conf)
-  * [Firefox ESR](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/FirefoxESR.conf) - /u/Cyrandir
-  * [Flash Player (Firefox)](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/FlashPlayer-Firefox.conf) - Must provide your own Distribution Link (http://www.adobe.com/products/players/flash-player-distribution.html)
-  * [Flash Player (IE)](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/FlashPlayer-IE.conf) - Must provide your own Distribution Link (http://www.adobe.com/products/players/flash-player-distribution.html)
-  * Google Chrome - [64 Bit MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/GoogleChrome-x64MSI.conf)
-  * Shockwave -  [MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/Shockwave.conf) -  /u/Cyrandir
-  * Skype - [MSI](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/Skype.conf) - /u/Cyrandir
-  * VLC - [32 Bit](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/VLC.conf) - [64 Bit](https://raw.githubusercontent.com/JL421/USUS/master/Config/Packages/DefaultPrograms/VLCx64.conf)
+  * 7 zip 32 Bit MSI - [GitHub](https://github.com/JL421/USUS-Packages/blob/master/7Zip.conf) - [Mirror](https://www.jasonlorsung.com/download/81/) 
+  * 7 zip 64 Bit MSI - [GitHub](https://github.com/JL421/USUS-Packages/blob/master/7Zipx64.conf) - [Mirror](https://www.jasonlorsung.com/download/85/)
+  * Adobe Air - [GitHub](https://github.com/JL421/USUS-Packages/blob/master/AdobeAir.conf) - [Mirror](https://www.jasonlorsung.com/download/88/)
+  * Adobe Reader - [GitHub](https://github.com/JL421/USUS-Packages/blob/master/AdobeReader.conf) - [Mirror](https://www.jasonlorsung.com/download/90/)
+  * FileZilla - [GitHub](https://github.com/JL421/USUS-Packages/blob/master/FileZilla.conf) - [Mirror](https://www.jasonlorsung.com/download/92/)
+  * Firefox - [GitHub](https://github.com/JL421/USUS-Packages/blob/master/Firefox.conf) - [Mirror](https://www.jasonlorsung.com/download/94/)
+  * Firefox ESR - [GitHub](https://github.com/JL421/USUS-Packages/blob/master/FirefoxESR.conf) - [Mirror](https://www.jasonlorsung.com/download/96/) - /u/Cyrandir
+  * Flash Player (Firefox) - [GitHub](https://github.com/JL421/USUS-Packages/blob/master/FlashPlayer-Firefox.conf) - [Mirror](https://www.jasonlorsung.com/download/98/) - Must provide your own Distribution Link (http://www.adobe.com/products/players/flash-player-distribution.html)
+  * Flash Player (IE) - [GitHub](https://github.com/JL421/USUS-Packages/blob/master/FlashPlayer-IE.conf) - [Mirror](https://www.jasonlorsung.com/download/100/) - Must provide your own Distribution Link (http://www.adobe.com/products/players/flash-player-distribution.html)
+  * Google Chrome 64 Bit MSI - [GitHub](https://github.com/JL421/USUS-Packages/blob/master/GoogleChrome-x64MSI.conf) - [Mirror](https://www.jasonlorsung.com/download/102/)
+  * Shockwave MSI - [GitHub](https://github.com/JL421/USUS-Packages/blob/master/Shockwave.conf) - [Mirror](https://www.jasonlorsung.com/download/104/) -  /u/Cyrandir
+  * Skype MSI - [GitHub](https://github.com/JL421/USUS-Packages/blob/master/Skype.conf) - [Mirror](https://www.jasonlorsung.com/download/106/) - /u/Cyrandir
+  * VLC 32 Bit - [GitHub](https://github.com/JL421/USUS-Packages/blob/master/VLC.conf) - [Mirror](https://www.jasonlorsung.com/download/110/)
+  * VLC 64 Bit - [GitHub](https://github.com/JL421/USUS-Packages/blob/master/VLCx64.conf) - [Mirror](https://www.jasonlorsung.com/download/112/)
+
+
+-----
+
+##Planned Changes
+
+ * PSExec Scripts
+ * Better Email Reports
+ * Installer Verification
+ * Deeper integration with Deployment Software
+ * Self Update - Optionally Self Update USUS
+ * SCCM Packages
+
+-----
+
+##Change Log
+
+**v1.4** (2015-07-06)
+
+ - Added Assisted Setup
+ - Added option to only send emails on new updates
+
+**v1.3** (2015-04-21)
+
+ - Improved Email Reporting
+ - Archiving for Old Installers
+ - Readded Custom Locations
+ - Custom Descriptions for Deployment Packages
+ - Removed Transcripts
+ - Misc bug fixes
+
+**v1.2** (2015-04-13)
+
+ - Added Deployment Package Creation
+ - Bug Fixes
+
+**v1.1** (2015-04-09)
+
+ - Cleaned up the Main Script body by moving Functions and Packages to a Config Directory
+ - Made some improvements to Bandwidth Usage
+ - Added Change Log and Current Version Logs to the SoftwareRepo Directory
+ - Added Email Reporting
+
+-----
+
+##Community Package Sharing / Feature Requests / New Releases
+
+You can find all of this at /r/USUScript
+
+Shared Packages that test well will be included in the Git Repository, with credit to the creator.
+
+Feature Requests will be worked on as time or necessity allows.
+
+The latest releases and fixes will be announced here as well, with Major Releases/Fixes also released posted on /r/sysadmin.
+
+-----
+
+Donations: `15zpLkRwSUtUDDcuGAh7pqV6P6rrAoXqCp`
