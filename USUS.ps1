@@ -29,8 +29,6 @@ IF(!($ConfigDir))
 
 IF($InitialSetup -eq $True)
 {
-	$header = "USUS V1.4"
-	$WebClient.Headers.Add("user-agent", $header)
 	CLS
 	Write-Host "Welcome to USUS
 Running Initial Setup . . ."
@@ -414,13 +412,54 @@ $PackagesDir = $ConfigDir + "\Packages"
 
 IF (!(Test-Path $IncludesDir))
 {
-	Write-Host "Your Includes Directory $IncludesDir
-Doesn't seem to exist, please correct this before continuing.`r`n"
-	Exit
+	Try
+	{
+		New-Item $IncludesDir -Type Directory -ErrorAction Stop | Out-Null
+	} Catch {
+		Write-Host "Could not create program directory of $IncludesDir.
+Please ensure that the user running this script has Write permissions to this location, and try again.`r`n"
+	}
 }
 
 
 #Import the Includes - Functions
+
+$IncludesUrls = @(@("https://www.jasonlorsung.com/download/58/","Check-Results"),
+@("https://www.jasonlorsung.com/download/61/","EmailReport"),
+@("https://www.jasonlorsung.com/download/63/","GetLatestSoftware"),
+@("https://www.jasonlorsung.com/download/65/","Get-FtpDirectory"),
+@("https://www.jasonlorsung.com/download/67/","Get-NewInstaller"),
+@("https://www.jasonlorsung.com/download/69/","Get-Packages"),
+@("https://www.jasonlorsung.com/download/71/","Make-InstallPackages"),
+@("https://www.jasonlorsung.com/download/73/","MSI-Version"),
+@("https://www.jasonlorsung.com/download/75/","ProcessPackages"),
+@("https://www.jasonlorsung.com/download/77/","Receive-Stream"))
+	
+ForEach ($IncludeUrl in $IncludesUrls)
+{
+	$header = "USUS V1.4"
+	$WebClient.Headers.Add("user-agent", $header)
+	$IncludeName = $IncludeUrl[1] + ".conf"
+	$IncludePath = $IncludesDir + "\" + $IncludeName
+	IF (!(Test-Path $IncludePath))
+	{
+		TRY
+		{
+			$WebClient.DownloadFile($IncludeUrl[0],$IncludePath)
+		} CATCH [System.Net.WebException] {
+			Start-Sleep 30
+			TRY
+			{
+				$WebClient.DownloadFile($IncludeUrl[0],$IncludePath)
+			} CATCH [System.Net.WebException] {
+				Write-Host "Could not download installer from $IncludeUrl.
+Please check that the web server is reachable. The error was:"
+				Write-Host $_.Exception.ToString()
+				Write-Host "`r`n"
+			}
+		}
+	}
+}
 
 $Includes = Get-ChildItem $IncludesDir -Exclude *Example*, *Template*
 
