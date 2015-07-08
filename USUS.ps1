@@ -562,7 +562,7 @@ IF ($ChocolateyPackages)
 				{
 					$WebClient.DownloadFile($NugetUrl,$IncludePath)
 				} CATCH [System.Net.WebException] {
-					Write-Host "Could not download installer from $IncludeUrl.
+					Write-Host "Could not download installer from $NugetUrl.
 Please check that the web server is reachable. The error was:"
 					Write-Host $_.Exception.ToString()
 					Write-Host "`r`n"
