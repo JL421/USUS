@@ -1,6 +1,6 @@
 ##What is this?
 
-USUS (Ultimate Software Update Script) is a Windows Powershell Script (v2.0+) that will check for updated installers for just about any installer. If you give it a set of packages to run with, it'll make sure your Installers are on the latest version, and package them up in a convenient format. (Batch, Lansweeper, PDQ Deploy, Self-Extracting Installer)
+USUS (Ultimate Software Update Script) is a Windows Powershell Script (v2.0+) that will check for updated installers for just about any installer. If you give it a set of packages to run with, it'll make sure your Installers are on the latest version, and package them up in a convenient format. (Batch, Chocolatey, Lansweeper, PDQ Deploy, Self-Extracting Installer)
 
 -----
 
@@ -12,7 +12,7 @@ USUS gives you more control over what you bring into your environment, while all
    - The source code of USUS is freely available, and USUS Packages can be verified before placing into service. You can even create your own packages. (Verification for installers downloaded with the script coming soon)
 
  * You don't have to replace your current deployment method
-   - USUS integrates with multiple deployment options (Good ole batch files, Lansweeper, PDQ Deploy), with support for automatic importation coming soon.
+   - USUS integrates with multiple deployment options (Batch files, Chocolatey, Lansweeper, PDQ Deploy), with support for automatic importation coming soon.
 
  * It doesn't cost you anything
    - Though donations or submitting USUS packages to /r/USUScript are appreciated.
@@ -26,21 +26,20 @@ USUS gives you more control over what you bring into your environment, while all
 -----
 
 ##Current Features
-**v1.4** (2015-07-06)
+**v1.5** (2015-07-08)
 
  - Assisted Setup
  - Email Reporting
  - Version Management
- - Batch, Lansweeper, PDQ, and Self Extracting Installer support
+ - Batch, Chocolatey, Lansweeper, PDQ, and Self Extracting Installer support
 
 -----
 
 ##Upgrade Notes
 
- - Should be plug and play with v1.3
- - Moved the Packages to their own repository
- - Updated Flash for Adobe's new server
- - Sorry for the delay, I've been neglecting this because it just works. The update is small because I forced myself to put something out to get me back into this
+ - Should be plug and play with v1.3+ - Use the -InitialSetup flag to update your Config
+ - Delete your Config/Includes folder to fetch all required components automatically
+ - Packages will be updated shortly to include new variables for Chocolatey Packages (Tags and WMI name)
 
 -----
 
@@ -109,7 +108,6 @@ Adding Packages is easy, either create one from the Template [GitHub](https://gi
 
 ##Planned Changes
 
- * PSExec Scripts
  * Better Email Reports
  * Installer Verification
  * Deeper integration with Deployment Software
@@ -119,6 +117,12 @@ Adding Packages is easy, either create one from the Template [GitHub](https://gi
 -----
 
 ##Change Log
+
+**v1.5** (2015-07-08
+
+ - Added Chocolatey Package Support with Versioning
+ - Allowed the Config Dir to be imported from -ConfigDir when using -InitialSetup
+ - Miscellaneous Tweaking to various code
 
 **v1.4** (2015-07-06)
 
