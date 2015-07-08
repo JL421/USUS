@@ -559,7 +559,8 @@ $IncludesUrls = @(@("https://www.jasonlorsung.com/download/58/","Check-Results")
 @("https://www.jasonlorsung.com/download/71/","Make-InstallPackages"),
 @("https://www.jasonlorsung.com/download/73/","MSI-Version"),
 @("https://www.jasonlorsung.com/download/75/","ProcessPackages"),
-@("https://www.jasonlorsung.com/download/77/","Receive-Stream"))
+@("https://www.jasonlorsung.com/download/77/","Receive-Stream"),
+@("https://www.jasonlorsung.com/download/139/","Chocolatey-Packages"))
 	
 ForEach ($IncludeUrl in $IncludesUrls)
 {
