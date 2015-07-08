@@ -588,7 +588,7 @@ Please check that the web server is reachable. The error was:"
 	}
 }
 
-IF ($ChocolateyPackages)
+IF ($Chocolatey)
 {
 	IF (!(Test-Path $IncludesDir\nuget.exe))
 	{
