@@ -27,6 +27,15 @@ IF(!($ConfigDir))
 	$InitialSetup = $True
 }
 
+IF($ConfigDir)
+{
+	$ConfigFileLocation = $ConfigDir + "\Config.conf"
+	IF (!(Test-Path $ConfigFileLocation))
+	{
+		$InitialSetup = $True
+	}
+}
+
 IF($InitialSetup -eq $True)
 {
 	CLS
@@ -70,13 +79,25 @@ Please ensure that the user running this script has Write permissions to this lo
 	
 	IF (!($SoftwareRepo))
 	{
-		[string]$SoftwareRepo = Read-Host 'Where is your Software Repo? '
+		DO
+		{
+			[string]$SoftwareRepo = Read-Host 'Where is your Software Repo? '
+			IF ($SoftwareRepo -eq "")
+				{
+					Write-Host "You must enter a Repository Location"
+				}
+		} Until ($SoftwareRepo -ne "")
 	} ELSE {
 		IF (([string]$SoftwareRepoTemp = Read-Host "Where is your Software Repo? : [$SoftwareRepo]") -ne '')
 		{
 			$SoftwareRepo = $SoftwareRepoTemp
-		}		
+		}
+		
 	}
+	
+	$SoftwareRepo = $SoftwareRepo.Replace("`"","")
+	
+	Write-Output "`"" | Out-Null #Escaped Double Quote so syntax highlighting still works
 	
 	IF (!($ArchiveOldVersions))
 	{
@@ -139,13 +160,25 @@ Please ensure that the user running this script has Write permissions to this lo
 	{
 		IF (!($ChocolateyRepo))
 		{
-			[string]$ChocolateyRepo = Read-Host 'Where is your Chocolatey Repo? '
+			DO
+			{
+				[string]$ChocolateyRepo = Read-Host 'Where is your Chocolatey Repo? '
+				IF ($ChocolateyRepo -eq "")
+				{
+					Write-Host "You must enter a Repository Location"
+				}
+			} Until ($ChocolateyRepo -ne "")
 		} ELSE {
 			IF (([string]$ChocolateyRepoTemp = Read-Host "Where is your Chocolatey Repo? : [$ChocolateyRepo]") -ne '')
 			{
 				$ChocolateyRepo = $ChocolateyRepoTemp
 			}			
 		}
+		
+		$ChocolateyRepo = $ChocolateyRepo.Replace("`"","")
+	
+		Write-Output "`"" | Out-Null #Escaped Double Quote so syntax highlighting still works
+		
 		IF (!($ChocolateyAuthors))
 		{
 			[string]$ChocolateyAuthors = Read-Host 'Who is your Chocolatey Author? '
@@ -189,13 +222,25 @@ Please ensure that the user running this script has Write permissions to this lo
 	{
 		IF (!($LansweeperRepo))
 		{
-			[string]$LansweeperRepo = Read-Host 'Where is your Lansweeper Repo? '
+			DO
+			{
+				[string]$LansweeperRepo = Read-Host 'Where is your Lansweeper Repo? '
+				IF ($LansweeperRepo -eq "")
+				{
+					Write-Host "You must enter a Repository Location"
+				}
+			} Until ($LansweeperRepo -ne "")
 		} ELSE {
 			IF (([string]$LansweeperRepoTemp = Read-Host "Where is your Lansweeper Repo? : [$LansweeperRepo]") -ne '')
 			{
 				$LansweeperRepo = $LansweeperRepoTemp
 			}			
 		}
+		
+		$LansweeperRepo = $LansweeperRepo.Replace("`"","")
+	
+		Write-Output "`"" | Out-Null #Escaped Double Quote so syntax highlighting still works
+		
 	}
 	
 	IF (!($PDQ))
