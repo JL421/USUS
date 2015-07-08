@@ -32,7 +32,20 @@ IF($InitialSetup -eq $True)
 	CLS
 	Write-Host "Welcome to USUS
 Running Initial Setup . . ."
-	[string]$ConfigDir = Read-Host 'Where do you want your Config Dir? '
+	IF (!($ConfigDir))
+	{
+		[string]$ConfigDir = Read-Host "Where do you want your Config Dir? "
+	} ELSE {
+		IF (([string]$ConfigDirTemp = Read-Host "Where do you want your Config Dir? : [$ConfigDir]") -ne '')
+		{
+			$ConfigDir = $ConfigDirTemp
+		}		
+	}
+	
+	
+	$ConfigDir = $ConfigDir.Replace("`"","")
+	
+	Write-Output "`"" | Out-Null #Escaped Double Quote so syntax highlighting still works
 	
 	$ConfigFileLocation = $ConfigDir + "\Config.conf"
 	
@@ -100,6 +113,56 @@ Please ensure that the user running this script has Write permissions to this lo
 			$BatchFiles = $False
 		} ELSE {
 			$BatchFiles = $True
+		}
+	}
+	
+	IF (!($Chocolatey))
+	{
+		[string]$ChocolateyTemp = Read-Host "Would you like to Create Chocolatey Packages? :[n]"
+		IF ($ChocolateyTemp.ToLower().StartsWith("y"))
+		{
+			$Chocolatey = $True
+		} ELSE {
+			$Chocolatey = $False
+		}
+	} ELSE {
+		[string]$ChocolateyTemp = Read-Host "Would you like to Create Chocolatey Packages? :[y]"
+		IF ($ChocolateyTemp.ToLower().StartsWith("n"))
+		{
+			$Chocolatey = $False
+		} ELSE {
+			$Chocolatey = $True
+		}
+	}
+	
+	IF ($Chocolatey)
+	{
+		IF (!($ChocolateyRepo))
+		{
+			[string]$ChocolateyRepo = Read-Host 'Where is your Chocolatey Repo? '
+		} ELSE {
+			IF (([string]$ChocolateyRepoTemp = Read-Host "Where is your Chocolatey Repo? : [$ChocolateyRepo]") -ne '')
+			{
+				$ChocolateyRepo = $ChocolateyRepoTemp
+			}			
+		}
+		IF (!($ChocolateyAuthors))
+		{
+			[string]$ChocolateyAuthors = Read-Host 'Who is your Chocolatey Author? '
+		} ELSE {
+			IF (([string]$ChocolateyAuthorsTemp = Read-Host "Who is your Chocolatey Author? : [$ChocolateyAuthors]") -ne '')
+			{
+				$ChocolateyAuthors = $ChocolateyAuthorsTemp
+			}			
+		}
+		IF (!($ChocolateyOwners))
+		{
+			[string]$ChocolateyOwners = Read-Host 'Who are your Chocolatey Owners? '
+		} ELSE {
+			IF (([string]$ChocolateyOwnersTemp = Read-Host "Who are your Chocolatey Owners? : [$ChocolateyOwners]") -ne '')
+			{
+				$ChocolateyOwners = $ChocolateyOwnersTemp
+			}			
 		}
 	}
 	
@@ -207,8 +270,26 @@ $ArchiveOldVersions = $' + $ArchiveOldVersions + '
 
 $BatchFiles = $' + $BatchFiles + '
 
-$Lansweeper = $' + $Lansweeper + '
-$LansweeperRepo = "' + $LansweeperRepo + '"
+$Chocolatey = $' + $Chocolatey
+
+IF ($Chocolatey)
+{
+	$ConfigFileContents = $ConfigFileContents + '
+$ChocolateyRepo = "' + $ChocolateyRepo + '"
+$ChocolateyAuthors = "' + $ChocolateyAuthors + '"
+$ChocolateyOwners = "' + $ChocolateyOwners + '"'
+}
+
+$ConfigFileContents = $ConfigFileContents + '
+$Lansweeper = $' + $Lansweeper
+
+IF ($Lansweeper)
+{
+	$ConfigFileContents = $ConfigFileContents + '
+$LansweeperRepo = "' + $LansweeperRepo + '"'
+}
+
+$ConfigFileContents = $ConfigFileContents + '
 
 $PDQ = $' + $PDQ + '
 $SFX = $' + $SFX + '
@@ -461,7 +542,37 @@ Please check that the web server is reachable. The error was:"
 	}
 }
 
-$Includes = Get-ChildItem $IncludesDir -Exclude *Example*, *Template*
+IF ($ChocolateyPackages)
+{
+	IF (!(Test-Path $IncludesDir\nuget.exe))
+	{
+		$NugetUrl = "https://nuget.org/nuget.exe"
+		$header = "USUS V1.4"
+		$WebClient.Headers.Add("user-agent", $header)
+		$IncludeName = "nuget.exe"
+		$IncludePath = $IncludesDir + "\" + $IncludeName
+		IF (!(Test-Path $IncludePath))
+		{
+			TRY
+			{
+				$WebClient.DownloadFile($NugetUrl,$IncludePath)
+			} CATCH [System.Net.WebException] {
+				Start-Sleep 30
+				TRY
+				{
+					$WebClient.DownloadFile($NugetUrl,$IncludePath)
+				} CATCH [System.Net.WebException] {
+					Write-Host "Could not download installer from $IncludeUrl.
+Please check that the web server is reachable. The error was:"
+					Write-Host $_.Exception.ToString()
+					Write-Host "`r`n"
+				}
+			}
+		}
+	}
+}
+
+$Includes = Get-ChildItem $IncludesDir -Exclude *Example*, *Template* | Where {$_.Name -like "*.conf"}
 
 IF ($Includes.Count -eq 0)
 {
