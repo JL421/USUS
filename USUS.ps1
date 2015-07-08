@@ -4,8 +4,8 @@
 .NOTES
 	File Name	: USUS.ps1
 	Author		: Jason Lorsung (jason@jasonlorsung.com)
-	Last Update : 2015-07-06
-	Version		: 1.4
+	Last Update : 2015-07-08
+	Version		: 1.5
 .EXAMPLE
 	USUS.ps1 -ConfigDir "D:\Data\Config" -ForceDeploymentPackage
 #>
