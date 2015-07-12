@@ -672,10 +672,9 @@ $InstallerChangeReportLocation = $SoftwareRepo + "\Installer Changes.txt"
 
 ForEach ($Package in $Packages)
 {
-
-	$UpdateResult = ProcessPackages | Invoke-Expression
+	$UpdateResults = "@("
+	$UpdateResult = ProcessPackages
 	$UpdateResults = $UpdateResults + $UpdateResult
-
 }
 
 #Send the Email Report (If everything was defined correctly)
