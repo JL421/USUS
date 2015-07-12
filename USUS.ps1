@@ -670,9 +670,10 @@ $InstallerChangeReportLocation = $SoftwareRepo + "\Installer Changes.txt"
 
 #Run the main function that processes the update packages and returns an array of updates processed
 
+$UpdateResults = "@("
+
 ForEach ($Package in $Packages)
 {
-	$UpdateResults = "@("
 	$UpdateResult = ProcessPackages
 	$UpdateResults = $UpdateResults + $UpdateResult
 }
