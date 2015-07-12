@@ -636,7 +636,23 @@ ForEach ($Include in $Includes)
 
 #Get the packages for update checking
 
-$Updates = Get-Packages
+# $Updates = Get-Packages
+
+IF (!(Test-Path $PackagesDir))
+{
+	Write-Host "The Package Repository $PackagesDir
+Doesn't seem to exist. Please correct before continuing.`r`n"
+	Break
+} ELSE {
+	$Packages = Get-ChildItem $PackagesDir -Exclude *Example*, *Template* -Recurse | ? { !$_.PSIsContainer}
+	IF ($Packages.Count -eq 0)
+	{
+		Write-Host "You don't seem to have any Packages in
+$PackageRepo
+Please add some before continuing.`r`n"
+		Exit
+	}
+}
 
 
 #Miscellaneous Variables
@@ -654,8 +670,13 @@ $InstallerChangeReportLocation = $SoftwareRepo + "\Installer Changes.txt"
 
 #Run the main function that processes the update packages and returns an array of updates processed
 
-$UpdateResults = ProcessPackages | Invoke-Expression
+ForEach ($Package in $Packages)
+{
 
+	$UpdateResult = ProcessPackages | Invoke-Expression
+	$UpdateResults = $UpdateResults + $UpdateResult
+
+}
 
 #Send the Email Report (If everything was defined correctly)
 
