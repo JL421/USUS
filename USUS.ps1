@@ -4,8 +4,70 @@
 .NOTES
 	File Name	: USUS.ps1
 	Author		: Jason Lorsung (jason@jasonlorsung.com)
-	Last Update : 2015-07-08
-	Version		: 1.5
+	Last Update : 2015-07-12
+	Version		: 1.5.2
+.VARIABLES
+	.GENERAL
+		$ConfigDir - Root storage location for config files, includes, and application packages
+		$Header - What should the user-agent be when retrieving the files from the server
+		$IncludeName - What is the name of the include being downloaded
+		$IncludePath - Where should the include be stored
+		$IncludesUrls - Urls to retrieve the Includes from
+		$InitialSetup - Should the initial setup wizard be run?
+		
+		
+	.GENERATED
+		$ConfigFileContents - Generated Config File from the Assisted Setup
+		$ConfigFileLocation - Location of the Main Config File - Generated from $ConfigDir
+		$ConfigCommand - The current config file's full text, to be executed to load into memory
+		$Configs - List of Config Files in ConfigDir
+		$EmailClient - .Net email client - Used to send email reports
+		$IncludeCommand - The current include's full text, to be executed to load into memory
+		$Includes - List of Include Files in IncludesDir
+		$IncludesDir - Where are the includes stored
+		$InstallerChangeReportLocation - Where to store the installer change report
+		$InstallerVersionReportLocation - Where to store the installer version report
+		$jobs - Currently running Powershell Jobs
+		$Packages - List of Package Files in PackagesDir
+		$PackagesDir - Where are the packages stored
+		$scriptPath - Where is USUS being executed from
+		$SetupFinish - Informs the user that their config file has been created successfully, and how to launch the script in the future
+		$TimeDateString - The current time and date
+		$UpdateResults - Array of the update results
+		$UpdateResult - Array of the last update package result
+		$WebClient - .Net WebClient, used to make web requests
+		*Temp - A temporary variable generated usually for a IF check
+		
+	.IMPORTED
+		$ArchiveOldVersions - Should the script archive old application versions - Set in Config.conf
+		$BatchFiles - Should the script create batch files for application installation - Set in Config.conf
+		$ChocolateyRepo - Location of the Chocolatey Package Repository - Define in Config.conf
+		$ChocolateyAuthors - Who do you want the author of the Chocolatey Package to
+		read as - Define in Config.conf
+		
+		$ChocolateyOwners - Who do you want the Owners of the Chocolatey Package to
+		read as - Define in Config.conf
+		
+		$EmailCCs - Who should the Email Report be sent to - Define in Config.conf
+		$EmailClientCredentialsPass - What password should be used to connect to the mail server - Used in Assisted Setup
+		$EmailClientCredentialsUser - What username should be used to connect to the mail server - Used in Assisted Setup
+		$EmailClient.EnableSsl - Should SSL be used to connect to the mail server - Define in Config.conf
+		$EmailFrom - Who should the email be sent from - Define in Config.conf
+		$EmailServer - What mail server should be used to send the email - Define in Config.conf
+		$EmailServerPort - What port should be used to connect to the mail server - Define in Config.conf
+		$EmailSubject - What should the subject line of the email read? - Define in Config.conf
+		$EmailTo - Should should the email be sent to - Define in Config.conf
+		$EmailOnNewVersionOnly - Should the script only send reports when new software is found - Define in Config.conf
+		$EmailReport - Should the script send an email report on completion - Define in Config.conf
+		$Lansweeper - Should the script create Lansweeper Packages - Define in Config.conf
+		$LansweeperRepo - Location of SoftwareRepo in the Lansweeper PackageShare Format - Define in Config.conf
+		$PDQ - Should the script create a PDQ package - Define in Config.conf
+		$SFX - Should the script create Self Extracting Installers - Define in Config.conf
+		
+		$SoftwareRepo - Location of the Software Repository to store application files in - Set in Config.conf
+		
+		
+	
 .EXAMPLE
 	USUS.ps1 -ConfigDir "D:\Data\Config" -ForceDeploymentPackage
 #>
