@@ -4,680 +4,256 @@
 .NOTES
 	File Name	: USUS.ps1
 	Author		: Jason Lorsung (jason@jasonlorsung.com)
-	Last Update : 2015-07-08
-	Version		: 1.5
+	Last Update : 2015-07-26
+	Version		: 2.0
 .EXAMPLE
-	USUS.ps1 -ConfigDir "D:\Data\Config" -ForceDeploymentPackage
+	USUS.ps1 -ConfigFile "D:\Data\Config.xml"
+.VARIABLES
+		.IMPORTED
+			$PackagesRepo - Storage Repository for downloaded package files
+			$SoftwareRepo - Storage Repository for downloaded software
+		.GENERAL
+			$ConfigFile - Location for the XML Config file
+		.GENERATED
+			$Configuration - The content of the XML Config File
+			$Package - Individual Package to be processed
+			$PackageName - Name of the package
+			$Packages - Null package for XML Package Master
+			$PackageMaster - The content of the XML Package Master File
+			$PackageMasterFile - Location of the XML Package Master File containing the content of all the updated packages
+			$UnimportedPackages - List of packages that have not been imported into the XML Package Master File
+
 #>
 
-param([string]$ConfigDir, [switch]$ForceDeploymentPackage, [switch]$InitialSetup)
+param([Parameter(Mandatory=$True)][string]$ConfigFile)
 
-# Define the WebClient
-
-$WebClient = New-Object System.Net.WebClient
-
-#Running Portion
-
-CLS
-
-#InitialSetup
-
-IF(!($ConfigDir))
+IF (!(Test-Path $ConfigFile))
 {
-	$InitialSetup = $True
+	Write-Output "Your specified config ($ConfigFile) doesn't seem to exist, or the user running this script doesn't have access to read it.
+Please correct this and try again."
+	Exit
 }
 
-IF($ConfigDir)
+[xml]$Configuration = Get-Content $ConfigFile
+
+#Test for required variables
+
+IF (!($Configuration.config))
 {
-	$ConfigFileLocation = $ConfigDir + "\Config.conf"
-	IF (!(Test-Path $ConfigFileLocation))
-	{
-		$InitialSetup = $True
-	}
+	Write-Output "Your config file seems to be missing its configuration. Please correct this and try again."
+	Exit
 }
 
-IF($InitialSetup -eq $True)
+IF (!($Configuration.config.softwarerepo))
 {
-	CLS
-	Write-Host "Welcome to USUS
-Running Initial Setup . . ."
-	IF (!($ConfigDir))
-	{
-		[string]$ConfigDir = Read-Host "Where do you want your Config Dir? "
-	} ELSE {
-		IF (([string]$ConfigDirTemp = Read-Host "Where do you want your Config Dir? : [$ConfigDir]") -ne '')
-		{
-			$ConfigDir = $ConfigDirTemp
-		}		
-	}
-	
-	
-	$ConfigDir = $ConfigDir.Replace("`"","")
-	
-	Write-Output "`"" | Out-Null #Escaped Double Quote so syntax highlighting still works
-	
-	$ConfigFileLocation = $ConfigDir + "\Config.conf"
-	
-	IF (Test-Path $ConfigDir)
-	{
-		IF (Test-Path $ConfigFileLocation)
-		{
-			Write-Host "Existing Config Found...
-Importing Current Config"
-			$ConfigCommand = [IO.FILE]::ReadAllText($ConfigFileLocation)
-			Invoke-Expression $ConfigCommand
-		}
-	} ELSE {
-		Try
-		{
-			New-Item $ConfigDir -Type Directory -ErrorAction Stop | Out-Null
-		} Catch {
-			Write-Host "Could not create program directory of $ConfigDir.
-Please ensure that the user running this script has Write permissions to this location, and try again.`r`n"
-		} 
-	}
-	
-	IF (!($SoftwareRepo))
-	{
-		DO
-		{
-			[string]$SoftwareRepo = Read-Host 'Where is your Software Repo? '
-			IF ($SoftwareRepo -eq "")
-				{
-					Write-Host "You must enter a Repository Location"
-				}
-		} Until ($SoftwareRepo -ne "")
-	} ELSE {
-		IF (([string]$SoftwareRepoTemp = Read-Host "Where is your Software Repo? : [$SoftwareRepo]") -ne '')
-		{
-			$SoftwareRepo = $SoftwareRepoTemp
-		}
-		
-	}
-	
-	$SoftwareRepo = $SoftwareRepo.Replace("`"","")
-	
-	Write-Output "`"" | Out-Null #Escaped Double Quote so syntax highlighting still works
-	
-	IF (!($ArchiveOldVersions))
-	{
-		[string]$ArchiveOldVersionsTemp = Read-Host "Would you like to Archive Old Software Versions? :[n]"
-		IF ($ArchiveOldVersionsTemp.ToLower().StartsWith("y"))
-		{
-			$ArchiveOldVersions = $True
-		} ELSE {
-			$ArchiveOldVersions = $False
-		}
-	} ELSE {
-		[string]$ArchiveOldVersionsTemp = Read-Host "Would you like to Archive Old Software Versions? :[y]"
-		IF ($ArchiveOldVersionsTemp.ToLower().StartsWith("n"))
-		{
-			$ArchiveOldVersions = $False
-		} ELSE {
-			$ArchiveOldVersions = $True
-		}
-	}
-	
-	IF (!($BatchFiles))
-	{
-		[string]$BatchFilesTemp = Read-Host "Would you like to Create Batch Files? :[n]"
-		IF ($BatchFilesTemp.ToLower().StartsWith("y"))
-		{
-			$BatchFiles = $True
-		} ELSE {
-			$BatchFiles = $False
-		}
-	} ELSE {
-		[string]$BatchFilesTemp = Read-Host "Would you like to Create Batch Files? :[y]"
-		IF ($BatchFilesTemp.ToLower().StartsWith("n"))
-		{
-			$BatchFiles = $False
-		} ELSE {
-			$BatchFiles = $True
-		}
-	}
-	
-	IF (!($Chocolatey))
-	{
-		[string]$ChocolateyTemp = Read-Host "Would you like to Create Chocolatey Packages? :[n]"
-		IF ($ChocolateyTemp.ToLower().StartsWith("y"))
-		{
-			$Chocolatey = $True
-		} ELSE {
-			$Chocolatey = $False
-		}
-	} ELSE {
-		[string]$ChocolateyTemp = Read-Host "Would you like to Create Chocolatey Packages? :[y]"
-		IF ($ChocolateyTemp.ToLower().StartsWith("n"))
-		{
-			$Chocolatey = $False
-		} ELSE {
-			$Chocolatey = $True
-		}
-	}
-	
-	IF ($Chocolatey)
-	{
-		IF (!($ChocolateyRepo))
-		{
-			DO
-			{
-				[string]$ChocolateyRepo = Read-Host 'Where is your Chocolatey Repo? '
-				IF ($ChocolateyRepo -eq "")
-				{
-					Write-Host "You must enter a Repository Location"
-				}
-			} Until ($ChocolateyRepo -ne "")
-		} ELSE {
-			IF (([string]$ChocolateyRepoTemp = Read-Host "Where is your Chocolatey Repo? : [$ChocolateyRepo]") -ne '')
-			{
-				$ChocolateyRepo = $ChocolateyRepoTemp
-			}			
-		}
-		
-		$ChocolateyRepo = $ChocolateyRepo.Replace("`"","")
-	
-		Write-Output "`"" | Out-Null #Escaped Double Quote so syntax highlighting still works
-		
-		IF (!($ChocolateyAuthors))
-		{
-			[string]$ChocolateyAuthors = Read-Host 'Who is your Chocolatey Author? '
-		} ELSE {
-			IF (([string]$ChocolateyAuthorsTemp = Read-Host "Who is your Chocolatey Author? : [$ChocolateyAuthors]") -ne '')
-			{
-				$ChocolateyAuthors = $ChocolateyAuthorsTemp
-			}			
-		}
-		IF (!($ChocolateyOwners))
-		{
-			[string]$ChocolateyOwners = Read-Host 'Who are your Chocolatey Owners? '
-		} ELSE {
-			IF (([string]$ChocolateyOwnersTemp = Read-Host "Who are your Chocolatey Owners? : [$ChocolateyOwners]") -ne '')
-			{
-				$ChocolateyOwners = $ChocolateyOwnersTemp
-			}			
-		}
-	}
-	
-	IF (!($Lansweeper))
-	{
-		[string]$LansweeperTemp = Read-Host "Would you like to Create Lansweeper Packages? :[n]"
-		IF ($LansweeperTemp.ToLower().StartsWith("y"))
-		{
-			$Lansweeper = $True
-		} ELSE {
-			$Lansweeper = $False
-		}
-	} ELSE {
-		[string]$LansweeperTemp = Read-Host "Would you like to Create Lansweeper Packages? :[y]"
-		IF ($LansweeperTemp.ToLower().StartsWith("n"))
-		{
-			$Lansweeper = $False
-		} ELSE {
-			$Lansweeper = $True
-		}
-	}
-	
-	IF ($Lansweeper)
-	{
-		IF (!($LansweeperRepo))
-		{
-			DO
-			{
-				[string]$LansweeperRepo = Read-Host 'Where is your Lansweeper Repo? '
-				IF ($LansweeperRepo -eq "")
-				{
-					Write-Host "You must enter a Repository Location"
-				}
-			} Until ($LansweeperRepo -ne "")
-		} ELSE {
-			IF (([string]$LansweeperRepoTemp = Read-Host "Where is your Lansweeper Repo? : [$LansweeperRepo]") -ne '')
-			{
-				$LansweeperRepo = $LansweeperRepoTemp
-			}			
-		}
-		
-		$LansweeperRepo = $LansweeperRepo.Replace("`"","")
-	
-		Write-Output "`"" | Out-Null #Escaped Double Quote so syntax highlighting still works
-		
-	}
-	
-	IF (!($PDQ))
-	{
-		[string]$PDQTemp = Read-Host "Would you like to Create PDQ Packages? :[n]"
-		IF ($PDQTemp.ToLower().StartsWith("y"))
-		{
-			$PDQ = $True
-		} ELSE {
-			$PDQ = $False
-		}
-	} ELSE {
-		[string]$PDQTemp = Read-Host "Would you like to Create PDQ Packages? :[y]"
-		IF ($PDQTemp.ToLower().StartsWith("n"))
-		{
-			$PDQ = $False
-		} ELSE {
-			$PDQ = $True
-		}
-	}
-	
-	IF (!($SFX))
-	{
-		[string]$SFXTemp = Read-Host "Would you like to Create SFX Packages? :[n]"
-		IF ($SFXTemp.ToLower().StartsWith("y"))
-		{
-			$SFX = $True
-		} ELSE {
-			$SFX = $False
-		}
-	} ELSE {
-		[string]$SFXTemp = Read-Host "Would you like to Create SFX Packages? :[y]"
-		IF ($SFXTemp.ToLower().StartsWith("n"))
-		{
-			$SFX = $False
-		} ELSE {
-			$SFX = $True
-		}
-	}
-	
-	IF (!($EmailReport))
-	{
-		[string]$EmailReportTemp = Read-Host "Would you like to Send Email Reports? :[n]"
-		IF ($EmailReportTemp.ToLower().StartsWith("y"))
-		{
-			$EmailReport = $True
-		} ELSE {
-			$EmailReport = $False
-		}
-	} ELSE {
-		[string]$EmailReportTemp = Read-Host "Would you like to Send Email Reports? :[y]"
-		IF ($EmailReportTemp.ToLower().StartsWith("n"))
-		{
-			$EmailReport = $False
-		} ELSE {
-			$EmailReport = $True
-		}
-	}
-	
-	IF ($PDQ -Or $SFX)
-	{
-		$BatchFiles = $True
-	}
-	
-	$ConfigFileContents = '#Storage location for Installers
-
-$SoftwareRepo = "' + $SoftwareRepo + '"
-
-$ArchiveOldVersions = $' + $ArchiveOldVersions + '
-
-#Deployment Package Types
-
-$BatchFiles = $' + $BatchFiles + '
-
-$Chocolatey = $' + $Chocolatey
-
-IF ($Chocolatey)
-{
-	$ConfigFileContents = $ConfigFileContents + '
-$ChocolateyRepo = "' + $ChocolateyRepo + '"
-$ChocolateyAuthors = "' + $ChocolateyAuthors + '"
-$ChocolateyOwners = "' + $ChocolateyOwners + '"'
+	Write-Output "Your Software Repo is not defined. Please correct this and try again."
+	Exit
 }
 
-$ConfigFileContents = $ConfigFileContents + '
-$Lansweeper = $' + $Lansweeper
-
-IF ($Lansweeper)
+IF (!(Test-Path $Configuration.config.softwarerepo))
 {
-	$ConfigFileContents = $ConfigFileContents + '
-$LansweeperRepo = "' + $LansweeperRepo + '"'
+	Write-Output "Your specified software repo ($Configuration.config.softwarerepo) doesn't seem to exist, or the user running this script
+doesn't have access to read it. Please correct this and try again."
+	Exit
 }
 
-$ConfigFileContents = $ConfigFileContents + '
-
-$PDQ = $' + $PDQ + '
-$SFX = $' + $SFX + '
-
-#Email Reporting Settings
-
-'
-	
-	IF ($EmailReport -eq $True)
-	{
-		IF (!($EmailOnNewVersionOnly))
-		{
-			[string]$EmailOnNewVersionOnlyTemp = Read-Host "Would you like to Send Email Reports On New Versions Only? :[n]"
-			IF ($EmailOnNewVersionOnlyTemp.ToLower().StartsWith("y"))
-			{
-				$EmailOnNewVersionOnly = $True
-			} ELSE {
-				$EmailOnNewVersionOnly = $False
-			}
-		} ELSE {
-			[string]$EmailOnNewVersionOnlyTemp = Read-Host "Would you like to Send Email Reports On New Versions Only? :[y]"
-			IF ($EmailOnNewVersionOnlyTemp.ToLower().StartsWith("n"))
-			{
-				$EmailOnNewVersionOnly = $False
-			} ELSE {
-				$EmailOnNewVersionOnly = $True
-			}
-		}
-	
-		IF (!($EmailFrom))
-		{
-			[string]$EmailFrom = Read-Host 'Who is your Email From? '
-		} ELSE {
-			IF (([string]$EmailFromTemp = Read-Host "Who is your Email From? : [$EmailFrom]") -ne '')
-			{
-				$EmailFrom = $EmailFromTemp
-			}			
-		}
-	
-		IF (!($EmailTo))
-		{
-			[string]$EmailTo = Read-Host 'Who is your Email To? (Comma Separated List)'
-		} ELSE {
-			IF (([string]$EmailToTemp = Read-Host "Who is your Email To? : [$EmailTo]") -ne '')
-			{
-				$EmailTo = $EmailToTemp
-			}			
-		}
-	
-		[string]$EmailSubjectTemp = Read-Host "What should your Email Subject Be? [USUS Report - yyyy-MM-dd-HH:mm]"
-	
-		IF ($EmailSubjectTemp -ne '')
-		{
-			$EmailSubject = $EmailSubjectTemp
-		} ELSE {
-			$EmailSubject = 'USUS Report - $(get-date -f yyyy-MM-dd-HH:mm)'
-		}
-	
-		IF (!($EmailServer))
-		{
-			[string]$EmailServer = Read-Host 'What is your Email Server? '
-		} ELSE {
-			IF (([string]$EmailServerTemp = Read-Host "What is your Email Server? : [$EmailServer]") -ne '')
-			{
-				$EmailServer = $EmailServerTemp
-			}			
-		}
-	
-	
-		IF (([string]$EmailServerPort = Read-Host "What is your Email Server Port? ") -ne '')
-		{
-			[string]$EmailServerPort = $EmailServerPort
-		}
-	
-		IF (!($EmailClient.EnableSsl))
-		{
-			[string]$EmailClientEnableSslTemp = Read-Host "Does your mail server Require SSL? :[n]"
-			IF ($EmailClientEnableSslTemp.ToLower().StartsWith("y"))
-			{
-				$EmailClientEnableSsl = $True
-			} ELSE {
-				$EmailClientEnableSsl = $False
-			}
-		} ELSE {
-			[string]$EmailClientEnableSslTemp = Read-Host "Does your mail server Require SSL? :[y]"
-			IF ($EmailClientEnableSslTemp.ToLower().StartsWith("n"))
-			{
-				$EmailClientEnableSsl = $False
-			} ELSE {
-				$EmailClientEnableSsl = $True
-			}
-		}
-	
-		[string]$EmailClientCredentialsUser = Read-Host 'What is your Email Username? '
-		[string]$EmailClientCredentialsPass = Read-Host 'What is your Email Password? '
-	
-	
-		IF (!($EmailCCs))
-		{
-			IF (([string]$EmailCCs = Read-Host 'Who is your Email CCed To? (Comma Separated List) ') -eq '')
-			{
-				$EmailCCs = '$Null'
-			}
-		} ELSE {
-			IF (([string]$EmailCCsTemp = Read-Host "Who is your Email CCed To? (Comma Separated List) : [$EmailCCs]") -ne '')
-			{
-				$EmailCCs = '"' + $EmailCCsTemp + '"'
-			}			
-		}
-		
-		$ConfigFileContents = $ConfigFileContents + '$EmailReport = $' + $EmailReport + '
-$EmailOnNewVersionOnly = $' + $EmailOnNewVersionOnly + '
-$EmailFrom = "' + $EmailFrom + '"
-$EmailTo = "' + $EmailTo + '"
-$EmailSubject = "' + $EmailSubject + '"
-$EmailServer = "' + $EmailServer + '"
-$EmailClient = New-Object Net.Mail.SmtpClient($EmailServer, ' + $EmailServerPort + ')
-$EmailClient.EnableSsl = $' + $EmailClientEnableSsl + '
-$EmailClient.Credentials = New-Object System.Net.NetworkCredential("' + $EmailClientCredentialsUser + '", "' + $EmailClientCredentialsPass + '")
-$EmailCCs = ' + $EmailCCs
-	} ELSE {
-		$ConfigFileContents = $ConfigFileContents + '#$EmailOnNewVersionOnly = $True or $False
-#$EmailFrom = "From Address"
-#$EmailTo = "To List"
-#$EmailSubject = "USUS Report - $(get-date -f yyyy-MM-dd-HH-mm)"
-#$EmailServer = "Mail Server"
-#$EmailClient = New-Object Net.Mail.SmtpClient($EmailServer, Port)
-#$EmailClient.EnableSsl = $True or $False
-#$EmailClient.Credentials = New-Object System.Net.NetworkCredential("Username", "Password")
-#$EmailCCs = "CC List" or $Null'		
-	}
-	
-	$ConfigFileContents | Out-File $ConfigFileLocation
-	$scriptPath = split-path -parent $MyInvocation.MyCommand.Definition
-	$SetupFinish = '
-	
-This config has been written. To launch USUS in the future and skip this setup, use the following command:
-
-powershell.exe -ExecutionPolicy Bypass -File "' + $scriptPath + '\USUS.ps1" -ConfigDir "' + $ConfigDir + '"'
-	Write-Host $SetupFinish
-	Write-Host "Press any key to continue ..."
-
-	$x = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-	
-}
-
-#Check that the Config Directory Exists
-
-IF (!(Test-Path $ConfigDir))
+IF (!(Test-Path $Configuration.config.packagesrepo))
 {
-	Write-Host "Your Config Directory $ConfigDir
-Doesn't seem to exist, please correct this before continuing.`r`n"
-	Start-Sleep 10
+	Write-Output "Your specified package repo ($Configuration.config.packagesrepo) doesn't seem to exist, or the user running this script
+doesn't have access to read it. Please correct this and try again."
 	Exit
 }
 
 
-#Import Config File - Essentially a list of variables
-
-$Configs = Get-ChildItem $ConfigDir -Exclude *Example*, *Template* | Where { ! $_.PSIsContainer }
-
-IF ($Configs.Count -eq 0)
+$PackageMasterFile = $Configuration.config.packagesrepo.TrimEnd("\") + "\PackageMaster.xml"
+IF (!(Test-Path $PackageMasterFile))
 {
-	Write-Host "You don't seem to have any base config files specified in $ConfigDir
-Please correct this before continuing.`r`n"
-	Exit
+	$PackageMaster = New-Object System.Xml.XmlDocument
+	$Packages = $PackageMaster.CreateElement("Packages")
+	$PackageMaster.AppendChild($Packages) | Out-Null
+	$Packages.AppendChild($PackageMaster.CreateElement("NullPackage")) | Out-Null
+	$PackageMaster.Save($PackageMasterFile)
 }
 
-ForEach ($Config in $Configs)
+[xml]$PackageMaster = Get-Content $PackageMasterFile
+
+$UnimportedPackages = Get-ChildItem $Configuration.config.packagesrepo -Exclude *Example*, *Template*, PackageMaster.xml -Include *.xml -Recurse | Where-Object { !$_.PSIsContainer}
+
+ForEach ($UnimportedPackage in $UnimportedPackages)
 {
-	$ConfigCommand = [IO.File]::ReadAllText($Config.FullName)
-	Invoke-Expression $ConfigCommand
-}
-
-
-#Verify $SoftwareRepo
-
-IF (!(Test-Path $SoftwareRepo))
-{
-	CLS
-	Write-Host "Software Repository $SoftwareRepo dosen't seem to exist.
-Please create this location or run this script with the credentials required to access it.`r`n"
-	Exit
-}
-
-
-#If one of the packages requiring a batch file is specified, enable batch file creation
-
-IF ($PDQ -Or $SFX)
-{
-	$BatchFiles = $True
-}
-
-#Define the Includes and Packages directories
-
-$IncludesDir = $ConfigDir + "\Includes"
-$PackagesDir = $ConfigDir + "\Packages"
-
-
-#Test that the Includes Directory Exists
-
-IF (!(Test-Path $IncludesDir))
-{
-	Try
+	[xml]$Package = Get-Content $UnimportedPackage
+	IF (($Package.SelectNodes("//Name") | Where-Object { $_.InnerText -ne $Null }) -eq $Null)
 	{
-		New-Item $IncludesDir -Type Directory -ErrorAction Stop | Out-Null
-	} Catch {
-		Write-Host "Could not create program directory of $IncludesDir.
-Please ensure that the user running this script has Write permissions to this location, and try again.`r`n"
+		Write-Debug "Package $UnimportedPackage doesn't seem to be valid, skipping..."
+		Continue
 	}
+	IF (($Package.SelectNodes("//Verify") | Where-Object { $_.InnerText -eq "USUS XML Package File" -And $_.InnerText -ne $Null}) -eq $Null)
+	{
+		Write-Debug "Package $UnimportedPackage doesn't seem to be valid, skipping..."
+		Continue
+	}
+	
+	$PackageName = $Package.package.Name
+	
+	IF (($PackageMaster.SelectNodes("//Packages/package/Name[text() = '$PackageName']")).Count -ne 0)
+	{
+		Write-Debug "Package $UnimportedPackage already exists in Package Master, skipping..." -debug
+		Continue
+	}
+	$PackageMaster.Packages.AppendChild($PackageMaster.ImportNode($Package.Package,$true)) | Out-Null
+	Remove-Item $UnimportedPackage
+	$PackageMaster.Save($PackageMasterFile)
 }
 
-
-#Import the Includes - Functions
-
-$IncludesUrls = @(@("https://www.jasonlorsung.com/download/58/","Check-Results"),
-@("https://www.jasonlorsung.com/download/61/","EmailReport"),
-@("https://www.jasonlorsung.com/download/63/","GetLatestSoftware"),
-@("https://www.jasonlorsung.com/download/65/","Get-FtpDirectory"),
-@("https://www.jasonlorsung.com/download/67/","Get-NewInstaller"),
-@("https://www.jasonlorsung.com/download/69/","Get-Packages"),
-@("https://www.jasonlorsung.com/download/71/","Make-InstallPackages"),
-@("https://www.jasonlorsung.com/download/73/","MSI-Version"),
-@("https://www.jasonlorsung.com/download/75/","ProcessPackages"),
-@("https://www.jasonlorsung.com/download/77/","Receive-Stream"),
-@("https://www.jasonlorsung.com/download/139/","Chocolatey-Packages"))
-	
-ForEach ($IncludeUrl in $IncludesUrls)
+$SoftwareMasterFile = $Configuration.config.softwarerepo.TrimEnd("\") + "\SoftwareMaster.xml"
+IF (!(Test-Path $SoftwareMasterFile))
 {
-	$header = "USUS V1.4"
-	$WebClient.Headers.Add("user-agent", $header)
-	$IncludeName = $IncludeUrl[1] + ".conf"
-	$IncludePath = $IncludesDir + "\" + $IncludeName
-	IF (!(Test-Path $IncludePath))
+	$SoftwareMaster = New-Object System.Xml.XmlDocument
+	$Software = $SoftwareMaster.CreateElement("SoftwarePackages")
+	$SoftwareMaster.AppendChild($Software) | Out-Null
+	$Software.AppendChild($SoftwareMaster.CreateElement("NullSoftware")) | Out-Null
+	$SoftwareMaster.Save($SoftwareMasterFile)
+}
+
+[xml]$SoftwareMaster = Get-Content $SoftwareMasterFile
+
+ForEach ($Package in $PackageMaster.SelectNodes("//Packages/package"))
+{
+	Write-Output $Package.Name
+	Write-Output Success
+	
+	$PackageName = $Package.Name
+	
+	IF (!(($SoftwareMaster.SelectNodes("//SoftwarePackages/software/Name[text() = '$PackageName']")).Count -ne 0))
 	{
-		TRY
+		$Software = $SoftwareMaster.CreateElement("software")
+		$SoftwareMaster.SoftwarePackages.AppendChild($Software) | Out-Null
+		$Software.AppendChild($SoftwareMaster.CreateElement("Name")) | Out-Null
+		$Software.Name = $PackageName
+		$SoftwareMaster.Save($SoftwareMasterFile)
+	} ELSE {
+		$Software = $SoftwareMaster.SelectNodes("//SoftwarePackages/software/Name") | Where-Object { $_.InnerText -eq $PackageName }
+	}
+	
+	IF (!(($Package.SelectNodes("//CustomPath") | Where-Object { $_.InnerText -ne $Null }) -eq $Null))
+	{
+		$LocalRepo = $Package.CustomPath
+		IF (!(Test-Path $LocalRepo))
 		{
-			$WebClient.DownloadFile($IncludeUrl[0],$IncludePath)
-		} CATCH [System.Net.WebException] {
-			Start-Sleep 30
-			TRY
-			{
-				$WebClient.DownloadFile($IncludeUrl[0],$IncludePath)
-			} CATCH [System.Net.WebException] {
-				Write-Host "Could not download installer from $IncludeUrl.
-Please check that the web server is reachable. The error was:"
-				Write-Host $_.Exception.ToString()
-				Write-Host "`r`n"
-			}
+			Write-Output "Software Repository $LocalRepo doesn't seem to exist.
+			Please create this location or run this script with the credentials required to access it."
+			Continue
+		}
+	} ELSE {
+		$LocalRepo = $Configuration.config.softwarerepo
+	}
+	
+	$CurrentInstaller = $LocalRepo + "\" + $Package.Name + "\" + $Package.Name
+	
+	IF (!(($Package.SelectNodes("//DownloadURL") | Where-Object { $_.InnerText -ne $Null }) -eq $Null))
+	{
+		$CurrentInstaller32 = $CurrentInstaller + "-x32"
+		IF ($Package.IsMSI)
+		{
+			$CurrentInstaller32 = $CurrentInstaller32 + ".msi"
+		} ELSE {
+			$CurrentInstaller32 = $CurrentInstaller32 + ".exe"
 		}
 	}
-}
-
-IF ($Chocolatey)
-{
-	IF (!(Test-Path $IncludesDir\nuget.exe))
+	
+	IF (!(($Package.SelectNodes("//DownloadURL64") | Where-Object { $_.InnerText -ne $Null }) -eq $Null))
 	{
-		$NugetUrl = "https://nuget.org/nuget.exe"
-		$header = "USUS V1.4"
-		$WebClient.Headers.Add("user-agent", $header)
-		$IncludeName = "nuget.exe"
-		$IncludePath = $IncludesDir + "\" + $IncludeName
-		IF (!(Test-Path $IncludePath))
+		$CurrentInstaller64 = $CurrentInstaller + "-x64"
+		IF ($Package.IsMSI)
 		{
-			TRY
+			$CurrentInstaller64 = $CurrentInstaller64 + ".msi"
+		} ELSE {
+			$CurrentInstaller64 = $CurrentInstaller64 + ".exe"
+		}
+	}
+	
+	IF (($Software.SelectNodes("//Versions/version")).Count -eq 0)
+	{
+		IF ($Package.IsMSI)
+		{
+			IF (!($CurrentInstaller32))
 			{
-				$WebClient.DownloadFile($NugetUrl,$IncludePath)
-			} CATCH [System.Net.WebException] {
-				Start-Sleep 30
-				TRY
+				IF (!(Test-Path $CurrentInstaller32))
 				{
-					$WebClient.DownloadFile($NugetUrl,$IncludePath)
-				} CATCH [System.Net.WebException] {
-					Write-Host "Could not download installer from $NugetUrl.
-Please check that the web server is reachable. The error was:"
-					Write-Host $_.Exception.ToString()
-					Write-Host "`r`n"
+					$CurrentVersion32 = "0"
+				} ELSE {
+					[string]$CurrentVersion32 = MSI-Version $CurrentInstaller32
 				}
 			}
+			
+			IF (!($CurrentInstaller64))
+			{
+				IF (!(Test-Path $CurrentInstaller64))
+				{
+					$CurrentVersion64 = "0"
+				} ELSE {
+					[string]$CurrentVersion64 = MSI-Version $CurrentInstaller64
+				}
+			}
+		} ELSE {
+			IF (!($CurrentInstaller32)
+			{
+				IF (!(Test-Path $CurrentInstaller32))
+				{
+					$CurrentVersion32 = "0"
+				} ELSE {
+					[string]$CurrentVersion32 = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($CurrentInstaller32).FileVersion
+					IF ($CurrentVersion32 -eq $Null -Or $CurrentVersion32 -eq "")
+					{
+						$CurrentVersion32 = (Get-Item $CurrentInstaller32).Length
+					}
+				}
+			}
+			IF (!($CurrentInstaller64))
+			{
+				$CurrentInstaller64 = $LocalRepo + "\" + $Package.Name + "\" + $Package.Name + "-64.exe"
+				IF (!(Test-Path $CurrentInstaller64))
+				{
+					$CurrentVersion64 = "0"
+				} ELSE {
+					[string]$CurrentVersion64 = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($CurrentInstaller64).FileVersion
+					IF ($CurrentVersion64 -eq $Null -Or $CurrentVersion64 -eq "")
+					{
+						$CurrentVersion64 = (Get-Item $CurrentInstaller64).Length
+					}
+				}
+			}					
 		}
+	} ELSE {
+		IF (!($CurrentInstaller32))
+		
+		$Software.SelectNodes("//Versions/version") | Sort-Object | Select-Object -first 1
 	}
-}
-
-$Includes = Get-ChildItem $IncludesDir -Exclude *Example*, *Template* | Where {$_.Name -like "*.conf"}
-
-IF ($Includes.Count -eq 0)
-{
-	Write-Host "You don't seem to have any Includes in $IncludesDir
-Please correct this before continuing.`r`n"
-	Exit
-}
-
-ForEach ($Include in $Includes)
-{
-	$IncludeCommand = [IO.File]::ReadAllText($Include.FullName)
-	Invoke-Expression $IncludeCommand
-}
-
-
-#Get the packages for update checking
-
-$Updates = Get-Packages
-
-
-#Miscellaneous Variables
-
-$TimeDateString = $(get-date -f yyyy-MM-dd-HH:mm)
-
-
-#Setup the Update Logs
-
-$InstallerVersionReportLocation = $SoftwareRepo + "\Installer Versions.txt"
-$InstallerChangeReportLocation = $SoftwareRepo + "\Installer Changes.txt"
-
-"`r`nPackages in Use`r`n-----`r`n" | Out-File $InstallerVersionReportLocation
-"`r`nPackages Updated on Last Run`r`n-----`r`n" | Out-File $InstallerChangeReportLocation
-
-#Run the main function that processes the update packages and returns an array of updates processed
-
-$UpdateResults = ProcessPackages | Invoke-Expression
-
-
-#Send the Email Report (If everything was defined correctly)
-
-IF ($EmailReport -eq $True)
-{
-	EmailReport
-}
-
-
-#Wait for the Temporary Installer cleanup to finish
-
-$jobs = (get-job -State Running | Measure-Object).count
-IF ($jobs -gt 0)
-{
-	Write-Host "
 	
-Cleaning Up Temporary Installers . . . Please Wait`r`n"
+	
+	
 }
-While ($jobs)
-{
-	start-sleep -seconds 5
-	$jobs = (get-job -state running | Measure-Object).count
-}
+
+#Cleanup Package and Software Master Files
 
 #End
+
+#Functions
+
+Function MSI-Version([IO.FileInfo]$Path)
+{
+	$Property = "ProductVersion"
+	TRY {
+		$WindowsInstaller = New-Object -ComObject WindowsInstaller.Installer
+		$MSIDatabase = $WindowsInstaller.GetType().InvokeMember("OpenDatabase","InvokeMethod",$Null,$WindowsInstaller,@($Path.FullName,0))
+		$Query = "SELECT Value FROM Property WHERE Property = '$($Property)'"
+		$View = $MSIDatabase.GetType().InvokeMember("OpenView","InvokeMethod",$null,$MSIDatabase,($Query))
+		$View.GetType().InvokeMember("Execute", "InvokeMethod", $null, $View, $null)
+		$Record = $View.GetType().InvokeMember("Fetch","InvokeMethod",$null,$View,$null)
+		$Value = $Record.GetType().InvokeMember("StringData","GetProperty",$null,$Record,1)
+		return $Value
+	} 
+	CATCH {
+		Write-Output $_.Exception.Message
+	}
+}
