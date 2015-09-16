@@ -11,21 +11,6 @@
 .FLAGS
 	-ConfigFile		Use this to specify a Config.XML file for the script to user
 	-DebugEnable	Use this to enable Debug output
-.VARIABLES
-		.IMPORTED
-			$PackagesRepo - Storage Repository for downloaded package files
-			$SoftwareRepo - Storage Repository for downloaded software
-		.GENERAL
-			$ConfigFile - Location for the XML Config file
-		.GENERATED
-			$Configuration - The content of the XML Config File
-			$Package - Individual Package to be processed
-			$PackageName - Name of the package
-			$Packages - Null package for XML Package Master
-			$PackageMaster - The content of the XML Package Master File
-			$PackageMasterFile - Location of the XML Package Master File containing the content of all the updated packages
-			$UnimportedPackages - List of packages that have not been imported into the XML Package Master File
-
 #>
 
 param([Parameter(Mandatory=$True)][string]$ConfigFile, [switch]$DebugEnable)
@@ -270,14 +255,14 @@ Function Get-SoftwareVersion ($BitCount, $CurrentInstaller, $Package, $Software)
 		} ELSE {
 			IF ($BitCount -eq "32")
 			{
-				$CurrentVersion = $Software.Versions32.version | Sort-Object $_.name -descending | Select-Object -First 1
+				$CurrentVersion = $Software.Versions32.version | Select-Object -First 1
 				$CurrentVersion = $CurrentVersion.name
 				IF (!(Test-Path $CurrentInstaller))
 				{
 					return $CurrentVersion, $True
 				}
 			} ELSEIF ($BitCount -eq "64") {
-				$CurrentVersion = $Software.Versions64.version | Sort-Object $_.name -descending | Select-Object -First 1
+				$CurrentVersion = $Software.Versions64.version | Select-Object -First 1
 				$CurrentVersion = $CurrentVersion.name
 				IF (!(Test-Path $CurrentInstaller))
 				{
@@ -418,7 +403,7 @@ Function Update-Software ($ArchiveOldVersions, $BitCount, $CurrentInstaller, $Cu
 				}
 			}
 			
-			$Versions.AppendChild($version) | Out-Null
+			$Versions.PrependChild($version) | Out-Null
 			$version.SetAttribute("name", $LatestVersion)
 			$location = $SoftwareMaster.CreateElement("Location")
 			$location.InnerText = $CurrentInstaller
@@ -506,6 +491,7 @@ ForEach ($UnimportedPackage in $UnimportedPackages)
 	}
 	
 	$PackageName = $Package.package.Name
+	$HumanReadableName = $Package.package.HumanReadableName
 	
 	IF (($PackageMaster.Packages.Package | Where-Object { $_.Name -eq $PackageName }).Count -ne 0)
 	{
@@ -524,12 +510,16 @@ ForEach ($UnimportedPackage in $UnimportedPackages)
 			Continue
 		} ELSEIF ($CurrentVersion -lt $LatestVersion) {
 			$CurrentPackage.ParentNode.RemoveChild($CurrentPackage) | Out-Null
-			$HumanReadableName = $Package.package.HumanReadableName
 			Write-Output "`r`n`r`n$HumanReadableName Package XML Updated to Version $LatestVersion"
 			Remove-Variable CurrentPackage
 			Remove-Variable CurrentVersion
 			Remove-Variable HumanReadableName
 			Remove-Variable LatestVersion
+			$PackageMaster.Packages.AppendChild($PackageMaster.ImportNode($Package.Package,$true)) | Out-Null
+			Remove-Item $UnimportedPackage
+			$PackageMaster.Save($PackageMasterFile)
+			Remove-Variable Package
+			Continue
 		}
 	}
 	
@@ -537,6 +527,8 @@ ForEach ($UnimportedPackage in $UnimportedPackages)
 	Remove-Item $UnimportedPackage
 	$PackageMaster.Save($PackageMasterFile)
 	
+	Write-Output "`r`n`r`n$HumanReadableName Package XML Imported."
+	Remove-Variable HumanReadableName
 	Remove-Variable Package
 }
 
@@ -551,7 +543,7 @@ IF (!(Test-Path $SoftwareMasterFile))
 	Remove-Variable SoftwareMaster
 }
 
-#Cleanup before running
+#Reload Package and Software Masters before running
 
 IF ($PackageMaster)
 {
@@ -721,5 +713,15 @@ Please ensure that this script has Write permissions to this location, and try a
 }
 
 #Cleanup Package and Software Master Files
+
+$PackageMaster.Packages.Package | Sort-Object { $_.Name } | ForEach { $PackageMaster.Packages.AppendChild($_) | Out-Null }
+
+[xml]$PackageMasterOriginal = Get-Content $PackageMasterFile
+$PackageMaster.Save($PackageMasterFile)
+
+$SoftwareMaster.SoftwarePackages.software | Sort-Object { $_.Name } | ForEach { $SoftwareMaster.SoftwarePackages.AppendChild($_) | Out-Null }
+$SoftwareMaster.Save($SoftwareMasterFile)
+
+
 
 #End
