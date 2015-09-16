@@ -380,35 +380,109 @@ Function Update-Software ($ArchiveOldVersions, $BitCount, $CurrentInstaller, $Cu
 				}
 			} -ArgumentList $templocation | out-null
 			
-			$version = $SoftwareMaster.CreateElement("version")
 			
-			IF ($BitCount -eq "32")
+			IF ($ArchiveOldVersions)
 			{
-				IF (!($Software.Versions32))
+				$version = $SoftwareMaster.CreateElement("version")
+				IF ($BitCount -eq "32")
 				{
-					$Versions = $SoftwareMaster.CreateElement("Versions32")
-					$Software.AppendChild($Versions) | Out-Null
-					$SoftwareMaster.Save($SoftwareMasterFile)
-				} ELSE {
-					$Versions = $Software.Versions32
+					IF (!($Software.Versions32))
+					{
+						$Versions = $SoftwareMaster.CreateElement("Versions32")
+						$Software.AppendChild($Versions) | Out-Null
+						$SoftwareMaster.Save($SoftwareMasterFile)
+					} ELSE {
+						$Versions = $Software.Versions32
+					}
+				} ELSEIF ($BitCount -eq "64") {
+					IF (!($Software.Versions64))
+					{
+						$Versions = $SoftwareMaster.CreateElement("Versions64")
+						$Software.AppendChild($Versions) | Out-Null
+						$SoftwareMaster.Save($SoftwareMasterFile)
+					} ELSE {
+						$Versions = $Software.Versions64
+					}
 				}
-			} ELSEIF ($BitCount -eq "64") {
-				IF (!($Software.Versions64))
+				
+				$Versions.PrependChild($version) | Out-Null
+				$version.SetAttribute("name", $LatestVersion)
+				$location = $SoftwareMaster.CreateElement("Location")
+				$location.InnerText = $CurrentInstaller
+				$version.AppendChild($location) | Out-Null
+				$SoftwareMaster.Save($SoftwareMasterFile)	
+				
+			} ELSE {
+				IF ($BitCount -eq "32")
 				{
-					$Versions = $SoftwareMaster.CreateElement("Versions64")
-					$Software.AppendChild($Versions) | Out-Null
-					$SoftwareMaster.Save($SoftwareMasterFile)
-				} ELSE {
-					$Versions = $Software.Versions64
+					IF ($Software.Versions32)
+					{
+						$Versions = $Software.Versions32
+						
+						IF (($Software.Versions32.version).Count -gt 1)
+						{
+							ForEach ($version in $Software.Versions32.version)
+							{
+								$version.ParentNode.RemoveChild($version) | Out-Null
+							}
+							
+							$version = $SoftwareMaster.CreateElement("version")
+							$Versions.PrependChild($version) | Out-Null
+							
+						} ELSEIF (($Software.Versions32.version).Count -eq 1) {
+							$version = $Software.Versions32.version
+						}		
+					} ELSE {
+						$version = $SoftwareMaster.CreateElement("version")
+						$Versions = $SoftwareMaster.CreateElement("Versions32")
+						$Software.AppendChild($Versions) | Out-Null
+						$SoftwareMaster.Save($SoftwareMasterFile)
+					}
 				}
-			}
-			
-			$Versions.PrependChild($version) | Out-Null
-			$version.SetAttribute("name", $LatestVersion)
-			$location = $SoftwareMaster.CreateElement("Location")
-			$location.InnerText = $CurrentInstaller
-			$version.AppendChild($location) | Out-Null
-			$SoftwareMaster.Save($SoftwareMasterFile)		
+				
+				IF ($BitCount -eq "64")
+				{
+					IF ($Software.Versions64)
+					{
+						$Versions = $Software.Versions64
+						IF (($Software.Versions64.version).Count -gt 1)
+						{
+							ForEach ($version in $Software.Versions64.version)
+							{
+								$version.ParentNode.RemoveChild($version) | Out-Null
+							}
+							
+							$version = $SoftwareMaster.CreateElement("version")
+							$Versions.PrependChild($version) | Out-Null
+							
+						} ELSEIF (($Software.Versions64.version).Count -eq 1) {
+							$version = $Software.Versions64.version
+						}
+					} ELSE {
+						$version = $SoftwareMaster.CreateElement("version")
+						$Versions = $SoftwareMaster.CreateElement("Versions64")
+						$Software.AppendChild($Versions) | Out-Null
+						$SoftwareMaster.Save($SoftwareMasterFile)
+					}
+				}
+				
+				$OldRepo = $LocalRepo + "\OldVersions"
+				IF (Test-Path $OldRepo)
+				{
+					Remove-Item $OldRepo -Recurse -Force -ErrorAction SilentlyContinue
+				}
+				
+				$version.SetAttribute("name", $LatestVersion)
+				IF (!($version.location))
+				{
+					$location = $SoftwareMaster.CreateElement("Location")
+					$location.InnerText = $CurrentInstaller
+					$version.AppendChild($location) | Out-Null
+				} ELSE {
+					$version.location.InnerText = $CurrentInstaller
+				}
+				$SoftwareMaster.Save($SoftwareMasterFile)					
+			}	
 		}
 	}
 }
@@ -729,6 +803,21 @@ IF ($Resort)
 	#Cleanup Software Master File
 	$SoftwareMaster.SoftwarePackages.software | Sort-Object { $_.Name } | ForEach { $SoftwareMaster.SoftwarePackages.AppendChild($_) | Out-Null }
 	$SoftwareMaster.Save($SoftwareMasterFile)
+}
+
+#Wait for the Installer cleanup to finish
+
+$jobs = (get-job -State Running | Measure-Object).count
+IF ($jobs -gt 0)
+{
+	Write-Host "
+	
+Cleaning Up Installers . . . Please Wait`r`n"
+}
+While ($jobs)
+{
+	start-sleep -seconds 5
+	$jobs = (get-job -state running | Measure-Object).count
 }
 
 #End
