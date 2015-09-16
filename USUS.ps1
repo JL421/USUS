@@ -4,10 +4,13 @@
 .NOTES
 	File Name	: USUS.ps1
 	Author		: Jason Lorsung (jason@jasonlorsung.com)
-	Last Update : 2015-07-26
+	Last Update : 2015-09-16
 	Version		: 2.0
 .EXAMPLE
 	USUS.ps1 -ConfigFile "D:\Data\Config.xml"
+.FLAGS
+	-ConfigFile		Use this to specify a Config.XML file for the script to user
+	-DebugEnable	Use this to enable Debug output
 .VARIABLES
 		.IMPORTED
 			$PackagesRepo - Storage Repository for downloaded package files
@@ -25,7 +28,7 @@
 
 #>
 
-param([Parameter(Mandatory=$True)][string]$ConfigFile)
+param([Parameter(Mandatory=$True)][string]$ConfigFile, [switch]$DebugEnable)
 
 #Functions
 
@@ -113,6 +116,11 @@ Function Get-LatestInstaller ($CurentVersion, $DownloadURL, $LatestVersion, $Pac
 			{
 				Get-NewInstaller $DownloadURL $templocation
 				[string]$LatestVersion = MSI-Version $templocation
+				IF ($LatestVersion -like "Error*" -Or $LatestVersion -like "Exception*")
+				{
+					Write-Debug $LatestVersion
+					Continue
+				}
 				$LatestVersion = $LatestVersion.Trim()
 				return $LatestVersion
 			} ELSE {
@@ -195,6 +203,10 @@ Function Get-SoftwareVersion ($BitCount, $CurrentInstaller, $Package, $Software)
 					$CurrentVersion = "0"
 				} ELSE {
 					[string]$CurrentVersion = MSI-Version $CurrentInstaller
+					IF ($CurrentVersion -like "Error*" -Or $CurrentVersion -like "Exception*")
+					{
+						Return $CurrentVersion
+					}
 					$CurrentVersion = $CurrentVersion.Trim()
 					
 					IF ($BitCount -eq "32")
@@ -418,6 +430,11 @@ Function Update-Software ($ArchiveOldVersions, $BitCount, $CurrentInstaller, $Cu
 
 $WebClient = New-Object System.Net.WebClient
 
+IF ($DebugEnable)
+{
+	$DebugPreference = "Continue"
+}
+
 #Running portion of script
 
 IF (!(Test-Path $ConfigFile))
@@ -478,31 +495,49 @@ ForEach ($UnimportedPackage in $UnimportedPackages)
 	IF (($Package.SelectNodes("//Name") | Where-Object { $_.InnerText -ne $Null }) -eq $Null)
 	{
 		Write-Debug "Package $UnimportedPackage doesn't seem to be valid, skipping..."
+		Remove-Variable Package
 		Continue
 	}
 	IF (($Package.SelectNodes("//Verify") | Where-Object { $_.InnerText -eq "USUS XML Package File" -And $_.InnerText -ne $Null}) -eq $Null)
 	{
 		Write-Debug "Package $UnimportedPackage doesn't seem to be valid, skipping..."
+		Remove-Variable Package
 		Continue
 	}
 	
 	$PackageName = $Package.package.Name
 	
-	IF (($PackageMaster.SelectNodes("//Packages/package") | Where-Object { $_.Name -eq $PackageName }).Count -ne 0)
+	IF (($PackageMaster.Packages.Package | Where-Object { $_.Name -eq $PackageName }).Count -ne 0)
 	{
-		Write-Debug "Package $UnimportedPackage already exists in Package Master, skipping..."
-		Continue
+		$CurrentPackage = $PackageMaster.Packages.Package | Where-Object { $_.Name -eq $PackageName } | Select-Object
+		
+		[int]$CurrentVersion = $CurrentPackage.Version
+		[int]$LatestVersion = $Package.package.Version
+		
+		IF ($CurrentVersion -ge $LatestVersion)
+		{
+			Write-Debug "Package $UnimportedPackage already exists in Package Master, skipping..."
+			Remove-Variable CurrentPackage
+			Remove-Variable CurrentVersion
+			Remove-Variable LatestVersion
+			Remove-Variable Package
+			Continue
+		} ELSEIF ($CurrentVersion -lt $LatestVersion) {
+			$CurrentPackage.ParentNode.RemoveChild($CurrentPackage) | Out-Null
+			$HumanReadableName = $Package.package.HumanReadableName
+			Write-Output "`r`n`r`n$HumanReadableName Package XML Updated to Version $LatestVersion"
+			Remove-Variable CurrentPackage
+			Remove-Variable CurrentVersion
+			Remove-Variable HumanReadableName
+			Remove-Variable LatestVersion
+		}
 	}
+	
 	$PackageMaster.Packages.AppendChild($PackageMaster.ImportNode($Package.Package,$true)) | Out-Null
 	Remove-Item $UnimportedPackage
 	$PackageMaster.Save($PackageMasterFile)
-	$Restart = $True
-}
-
-IF ($Restart -eq $True)
-{
-	Write-Output "`r`n`r`nImported new Packages, please run script again to process.`r`n"
-	Exit
+	
+	Remove-Variable Package
 }
 
 $SoftwareMasterFile = $Configuration.config.softwarerepo.TrimEnd("\") + "\SoftwareMaster.xml"
@@ -513,6 +548,17 @@ IF (!(Test-Path $SoftwareMasterFile))
 	$SoftwareMaster.AppendChild($Software) | Out-Null
 	$Software.AppendChild($SoftwareMaster.CreateElement("NullSoftware")) | Out-Null
 	$SoftwareMaster.Save($SoftwareMasterFile)
+	Remove-Variable SoftwareMaster
+}
+
+#Cleanup before running
+
+IF ($PackageMaster)
+{
+	Remove-Variable PackageMaster
+}
+IF ($SoftwareMaster)
+{
 	Remove-Variable SoftwareMaster
 }
 
@@ -532,7 +578,7 @@ ForEach ($Package in $PackageMaster.Packages.Package)
 {	
 	$PackageName = $Package.Name
 	
-	IF (!(($SoftwareMaster.SelectNodes("//SoftwarePackages/software/Name[text() = '$PackageName']")).Count -ne 0))
+	IF (!(($SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }).Count -ne 0))
 	{
 		$Software = $SoftwareMaster.CreateElement("software")
 		$SoftwareMaster.SoftwarePackages.AppendChild($Software) | Out-Null
@@ -540,7 +586,7 @@ ForEach ($Package in $PackageMaster.Packages.Package)
 		$Software.Name = $PackageName
 		$SoftwareMaster.Save($SoftwareMasterFile)
 	} ELSE {
-		$Software = $SoftwareMaster.SelectNodes("//SoftwarePackages/software") | Where-Object { $_.Name -eq $PackageName }
+		$Software = $SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }
 	}
 	
 	IF ($Package.CustomPath)
@@ -591,8 +637,15 @@ Please ensure that this script has Write permissions to this location, and try a
 		}
 		
 		$GetSoftwareVersionResults = Get-SoftwareVersion -BitCount "32" -CurrentInstaller $CurrentInstaller32 -Package $Package -Software $Software
-		$CurrentVersion = $GetSoftwareVersionResults[0]
-		$ForceDownload = $GetSoftwareVersionResults[1]
+		IF ($GetSoftwareVersionResults -like "Error*" -Or $GetSoftwareVersionResults -like "Exception*")
+		{
+			Write-Debug $GetSoftwareVersionResults
+			$CurrentVersion = "0"
+			$ForceDownload = $True
+		} ELSE {
+			$CurrentVersion = $GetSoftwareVersionResults[0]
+			$ForceDownload = $GetSoftwareVersionResults[1]
+		}
 		
 		$GenerateURLResults = Generate-URL -BitCount "32" -CurrentVersion $CurrentVersion -Package $Package -WebClient $WebClient
 		$DownloadURL = $GenerateURLResults[0]
