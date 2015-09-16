@@ -519,6 +519,7 @@ ForEach ($UnimportedPackage in $UnimportedPackages)
 			Remove-Item $UnimportedPackage
 			$PackageMaster.Save($PackageMasterFile)
 			Remove-Variable Package
+			$Resort = $True
 			Continue
 		}
 	}
@@ -530,6 +531,7 @@ ForEach ($UnimportedPackage in $UnimportedPackages)
 	Write-Output "`r`n`r`n$HumanReadableName Package XML Imported."
 	Remove-Variable HumanReadableName
 	Remove-Variable Package
+	$Resort = $True
 }
 
 $SoftwareMasterFile = $Configuration.config.softwarerepo.TrimEnd("\") + "\SoftwareMaster.xml"
@@ -541,6 +543,16 @@ IF (!(Test-Path $SoftwareMasterFile))
 	$Software.AppendChild($SoftwareMaster.CreateElement("NullSoftware")) | Out-Null
 	$SoftwareMaster.Save($SoftwareMasterFile)
 	Remove-Variable SoftwareMaster
+}
+
+IF ($Resort)
+{
+	#Cleanup Package Master File
+
+	$PackageMaster.Packages.Package | Sort-Object { $_.Name } | ForEach { $PackageMaster.Packages.AppendChild($_) | Out-Null }
+
+	[xml]$PackageMasterOriginal = Get-Content $PackageMasterFile
+	$PackageMaster.Save($PackageMasterFile)
 }
 
 #Reload Package and Software Masters before running
@@ -712,16 +724,11 @@ Please ensure that this script has Write permissions to this location, and try a
 	}	
 }
 
-#Cleanup Package and Software Master Files
-
-$PackageMaster.Packages.Package | Sort-Object { $_.Name } | ForEach { $PackageMaster.Packages.AppendChild($_) | Out-Null }
-
-[xml]$PackageMasterOriginal = Get-Content $PackageMasterFile
-$PackageMaster.Save($PackageMasterFile)
-
-$SoftwareMaster.SoftwarePackages.software | Sort-Object { $_.Name } | ForEach { $SoftwareMaster.SoftwarePackages.AppendChild($_) | Out-Null }
-$SoftwareMaster.Save($SoftwareMasterFile)
-
-
+IF ($Resort)
+{
+	#Cleanup Software Master File
+	$SoftwareMaster.SoftwarePackages.software | Sort-Object { $_.Name } | ForEach { $SoftwareMaster.SoftwarePackages.AppendChild($_) | Out-Null }
+	$SoftwareMaster.Save($SoftwareMasterFile)
+}
 
 #End
