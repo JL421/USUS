@@ -29,6 +29,136 @@ param([Parameter(Mandatory=$True)][string]$ConfigFile)
 
 #Functions
 
+Function Generate-URL ($BitCount, $CurrentVersion, $Package, $WebClient)
+{
+	IF ($BitCount -eq "32")
+	{
+		IF (!($Package.DownloadURL32))
+		{
+			IF (($Package.URLGenerator32.URLGenerator).Count -ne 0)
+			{
+				$URLGenerator = ""
+				$Package.URLGenerator32.URLGenerator | ForEach {
+					$URLGenerator = $URLGenerator + "`r`n" + $_
+				}
+				$URLGenerator = [scriptblock]::Create($URLGenerator)
+				$VersionURL = Invoke-Command -scriptblock {param($CurrentVersion, $WebClient)& $URLGenerator} -ArgumentList $CurrentVersion,$WebClient
+				IF (!($VersionURL -like "Error*") -Or !($VersionURL -like "Exception*"))
+				{
+					IF ($VersionURL.Count -eq 2)
+					{
+						$DownloadURL = $VersionURL[0]
+						[string]$LatestVersion = $VersionURL[1]
+						$LatestVersion = $LatestVersion.Trim()
+						return $DownloadURL, $LatestVersion
+					} ELSEIF ($VersionURL -ne $Null) {
+						$DownloadURL = $VersionURL
+						return $DownloadURL, "No Version Retrieved"
+					}
+				} ELSE {
+				
+					Write-Debug "Error occurred while retrieving URL for package $PackageName
+					The error was $VersionURL"
+					Continue
+				}
+			}
+		} ELSE {
+			$DownloadURL = $Package.DownloadURL32
+			return $DownloadURL, "No Version Retrieved"
+		}
+	} ELSEIF ($BitCount -eq "64") {
+		IF (!($Package.DownloadURL64))
+		{
+			IF (($Package.URLGenerator64.URLGenerator).Count -ne 0)
+			{
+				$URLGenerator = ""
+				$Package.URLGenerator64.URLGenerator | ForEach {
+					$URLGenerator = $URLGenerator + "`r`n" + $_
+				}
+				$URLGenerator = [scriptblock]::Create($URLGenerator)
+				$VersionURL = Invoke-Command -scriptblock {param($CurrentVersion, $WebClient)& $URLGenerator} -ArgumentList $CurrentVersion,$WebClient
+				IF (!($VersionURL -like "Error*") -Or !($VersionURL -like "Exception*"))
+				{
+					IF ($VersionURL.Count -eq 2)
+					{
+						$DownloadURL = $VersionURL[0]
+						[string]$LatestVersion = $VersionURL[1]
+						$LatestVersion = $LatestVersion.Trim()
+						return $DownloadURL, $LatestVersion
+					} ELSEIF ($VersionURL -ne $Null) {
+						$DownloadURL = $VersionURL
+						return $DownloadURL, "No Version Retrieved"
+					}
+				} ELSE {
+				
+					Write-Debug "Error occurred while retrieving URL for package $PackageName
+					The error was $VersionURL"
+					Continue
+				}
+			}
+		} ELSE {
+			$DownloadURL = $Package.DownloadURL64
+			return $DownloadURL, "No Version Retrieved"
+		}
+	}
+}
+
+Function Get-LatestInstaller ($CurentVersion, $DownloadURL, $LatestVersion, $Package, $templocation)
+{
+	IF ($Package.IsMSI)
+	{	
+		IF ($DownloadURL -ne $Null)
+		{
+			IF ($LatestVersion -eq $Null -Or (!($LatestVersion)) -Or $LatestVersion -eq "")
+			{
+				Get-NewInstaller $DownloadURL $templocation
+				[string]$LatestVersion = MSI-Version $templocation
+				$LatestVersion = $LatestVersion.Trim()
+				return $LatestVersion
+			} ELSE {
+				IF ($CurrentVersion -ne $LatestVersion)
+				{
+					Get-NewInstaller $DownloadURL $templocation
+					return $LatestVersion
+				}
+				
+				return $LatestVersion
+			}
+		}
+	} ELSE {
+		IF ($DownloadURL)
+		{
+			IF ($LatestVersion -eq $Null -Or (!($LatestVersion)) -Or $LatestVersion -eq "")
+			{				
+				Get-NewInstaller $DownloadURL $templocation
+				[string]$LatestVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($templocation).FileVersion
+				$LatestVersion = $LatestVersion.Trim()
+				IF ($LatestVersion -eq $Null -Or $LatestVersion -eq "")
+				{
+					$LatestVersion = (Get-Item $templocation).Length
+					$LatestVersion = $LatestVersion.Trim()
+					return $LatestVersion
+				}
+			} ELSE {
+				IF ($CurrentVersion -ne $LatestVersion)
+				{
+					Get-NewInstaller $DownloadURL $templocation
+					IF ($ForceDownload)
+					{
+						[string]$LatestVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($templocation).FileVersion
+						$LatestVersion = $LatestVersion.Trim()
+						return $LatestVersion
+					}
+					
+					return $LatestVersion
+				}
+				
+				return $LatestVersion
+			}
+		}
+	}
+}
+
 Function Get-NewInstaller([string]$url, [string]$templocation)
 {
 	TRY
@@ -52,6 +182,101 @@ Please check that the web server is reachable. The error was:"
 	}
 }
 
+Function Get-SoftwareVersion ($BitCount, $CurrentInstaller, $Package, $Software)
+{	
+	IF ($Package.DownloadURL32 -Or $Package.DownloadURL64 -Or $Package.URLGenerator32 -Or $Package.URLGenerator64)
+	{
+		IF ((!($Software.Versions32) -And ($BitCount -eq "32")) -Or (!($Software.Versions64) -And ($BitCount -eq "64")))
+		{			
+			IF ($Package.IsMSI)
+			{
+				IF (!(Test-Path $CurrentInstaller))
+				{
+					$CurrentVersion = "0"
+				} ELSE {
+					[string]$CurrentVersion = MSI-Version $CurrentInstaller
+					$CurrentVersion = $CurrentVersion.Trim()
+					
+					IF ($BitCount -eq "32")
+					{
+
+						$Versions = $SoftwareMaster.CreateElement("Versions32")
+						$Software.AppendChild($Versions) | Out-Null
+						$SoftwareMaster.Save($SoftwareMasterFile)
+
+					} ELSEIF ($BitCount -eq "64") {
+						$Versions = $SoftwareMaster.CreateElement("Versions64")
+						$Software.AppendChild($Versions) | Out-Null
+						$SoftwareMaster.Save($SoftwareMasterFile)
+					}
+					
+					$version = $SoftwareMaster.CreateElement("version")
+					$Versions.AppendChild($version) | Out-Null
+					$location = $SoftwareMaster.CreateElement("Location")
+					$location.InnerText = $CurrentInstaller
+					$version.AppendChild($location) | Out-Null
+					$version.SetAttribute("name", $CurrentVersion)
+					$SoftwareMaster.Save($SoftwareMasterFile)
+				}
+				
+				return $CurrentVersion, $False
+			} ELSE {
+				IF (!(Test-Path $CurrentInstaller))
+				{
+					$CurrentVersion = "0"
+				} ELSE {
+					[string]$CurrentVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($CurrentInstaller).FileVersion
+					$CurrentVersion = $CurrentVersion.Trim()
+					$CurrentVersion = $CurrentVersion -split "[\n\r\s]" | Select-Object -Index 0
+					IF ($CurrentVersion -eq $Null -Or $CurrentVersion -eq "")
+					{
+						$CurrentVersion = (Get-Item $CurrentInstaller).Length
+					} ELSE {
+						IF ($BitCount -eq "32")
+						{
+							$Versions = $SoftwareMaster.CreateElement("Versions32")
+							$Software.AppendChild($Versions) | Out-Null
+							$SoftwareMaster.Save($SoftwareMasterFile)
+						} ELSEIF ($BitCount -eq "64") {
+							$Versions = $SoftwareMaster.CreateElement("Versions64")
+							$Software.AppendChild($Versions) | Out-Null
+							$SoftwareMaster.Save($SoftwareMasterFile)
+						}
+						
+						$version = $SoftwareMaster.CreateElement("version")
+						$Versions.AppendChild($version) | Out-Null
+						$location = $SoftwareMaster.CreateElement("Location")
+						$location.InnerText = $CurrentInstaller
+						$version.AppendChild($location) | Out-Null
+						$version.SetAttribute("name", $CurrentVersion)
+						$SoftwareMaster.Save($SoftwareMasterFile)
+					}
+				}
+				
+				return $CurrentVersion, $False
+			}					
+		} ELSE {
+			IF ($BitCount -eq "32")
+			{
+				$CurrentVersion = $Software.Versions32.version | Sort-Object $_.name -descending | Select-Object -First 1
+				$CurrentVersion = $CurrentVersion.name
+				IF (!(Test-Path $CurrentInstaller))
+				{
+					return $CurrentVersion, $True
+				}
+			} ELSEIF ($BitCount -eq "64") {
+				$CurrentVersion = $Software.Versions64.version | Sort-Object $_.name -descending | Select-Object -First 1
+				$CurrentVersion = $CurrentVersion.name
+				IF (!(Test-Path $CurrentInstaller))
+				{
+					return $CurrentVersion, $True
+				}
+			}
+			return $CurrentVersion, $False
+		}		
+	}
+}
+
 Function MSI-Version([IO.FileInfo]$Path)
 {
 	$Property = "ProductVersion"
@@ -67,6 +292,127 @@ Function MSI-Version([IO.FileInfo]$Path)
 	} 
 	CATCH {
 		Write-Output $_.Exception.Message
+	}
+}
+
+Function Update-Software ($ArchiveOldVersions, $BitCount, $CurrentInstaller, $CurrentVersion, $HumanReadableName, $InstallerName, $LatestVersion, $LocalRepo, $Software, $SoftwareMaster, $SoftwareMasterFile, $templocation)
+{
+	IF ($CurrentInstaller -ne $Null)
+	{
+		IF ($CurrentVersion -eq $LatestVersion)
+		{
+			Write-Output "No New Version of $HumanReadableName $BitCount Bit Available`r`n"
+			Start-Job -ScriptBlock {
+				param($FileDelete)& {
+					$Counter = 0
+					WHILE (Test-Path $FileDelete -And $Counter -lt 13)
+					{
+						Remove-Item $FileDelete -Force -ErrorAction SilentlyContinue
+						Start-Sleep 5
+						$Counter++
+					}
+				}
+			} -ArgumentList $templocation | out-null
+		} ELSE {
+			Write-Output "New Version of $HumanReadableName $BitCount Bit Available!`r`n"
+		
+			IF ($ArchiveOldVersions)
+			{
+				IF ($CurrentVersion -ne 0 -And $CurrentVersion -ne $Null)
+				{
+					$OldRepo = $LocalRepo + "\OldVersions"
+					IF (!(Test-Path $OldRepo))
+					{
+						Try
+						{
+							New-Item $OldRepo -Type Directory -ErrorAction Stop | Out-Null
+						} Catch {
+							Write-Debug "Cannot create archive directory $OldRepo.
+							Skipping Archive Process"
+						}
+					}
+			
+					$OldRepo = $OldRepo + "\" + $CurrentVersion
+					Try
+					{
+						New-Item $OldRepo -Type Directory -ErrorAction Stop | Out-Null
+					} Catch {
+						Write-Debug "Cannot create archive directory $OldRepo.
+						Skipping Archive Process"
+					} Finally {
+						Try
+						{
+							Copy-Item $CurrentInstaller $OldRepo -Force -ErrorAction Stop
+						} Catch {
+							Write-Debug "Cannot archive installer $CurrentInstaller.
+							Skipping Archive Process"
+						}
+					}
+					$ArchiveInstaller = $OldRepo + "\" + $InstallerName
+					IF ($BitCount -eq "32")
+					{
+						$Version = $Software.Versions32.version | Where-Object { $_.name -eq $CurrentVersion }
+					} ELSEIF ($BitCount -eq "64") {
+						$Version = $Software.Versions64.version | Where-Object { $_.name -eq $CurrentVersion }
+					}
+					
+					$Version.Location = $ArchiveInstaller
+					$SoftwareMaster.Save($SoftwareMasterFile)
+					Remove-Variable Version
+				}
+			}
+		
+			Try
+			{
+				Copy-Item $templocation $LocalRepo -Force -ErrorAction Stop
+			} Catch {
+				write-output "Could not copy new installer to $LocalRepo.
+				Please ensure that this script has Write permissions to this location, and try again.`r`n"
+			} Finally {
+				write-output "$HumanReadableName $BitCount Bit updated to version $LatestVersion !`r`n"
+			}
+			Start-Job -ScriptBlock {
+				param($FileDelete)& {
+					$Counter = 0
+					WHILE (Test-Path $FileDelete -And $Counter -lt 13)
+					{
+						Remove-Item $FileDelete -Force -ErrorAction SilentlyContinue
+						Start-Sleep 5
+						$Counter++
+					}
+				}
+			} -ArgumentList $templocation | out-null
+			
+			$version = $SoftwareMaster.CreateElement("version")
+			
+			IF ($BitCount -eq "32")
+			{
+				IF (!($Software.Versions32))
+				{
+					$Versions = $SoftwareMaster.CreateElement("Versions32")
+					$Software.AppendChild($Versions) | Out-Null
+					$SoftwareMaster.Save($SoftwareMasterFile)
+				} ELSE {
+					$Versions = $Software.Versions32
+				}
+			} ELSEIF ($BitCount -eq "64") {
+				IF (!($Software.Versions64))
+				{
+					$Versions = $SoftwareMaster.CreateElement("Versions64")
+					$Software.AppendChild($Versions) | Out-Null
+					$SoftwareMaster.Save($SoftwareMasterFile)
+				} ELSE {
+					$Versions = $Software.Versions64
+				}
+			}
+			
+			$Versions.AppendChild($version) | Out-Null
+			$version.SetAttribute("name", $LatestVersion)
+			$location = $SoftwareMaster.CreateElement("Location")
+			$location.InnerText = $CurrentInstaller
+			$version.AppendChild($location) | Out-Null
+			$SoftwareMaster.Save($SoftwareMasterFile)		
+		}
 	}
 }
 
@@ -173,6 +519,13 @@ IF (!(Test-Path $SoftwareMasterFile))
 [xml]$PackageMaster = Get-Content $PackageMasterFile
 [xml]$SoftwareMaster = Get-Content $SoftwareMasterFile
 
+IF ($Configuration.config.ArchiveOldVersions)
+{
+	$ArchiveOldVersions = $True
+} ELSE {
+	$ArchiveOldVersions = $False
+}
+
 Write-Output "`r`n`r`n"
 
 ForEach ($Package in $PackageMaster.Packages.Package)
@@ -217,9 +570,11 @@ Please ensure that this script has Write permissions to this location, and try a
 	}
 		
 	$CurrentInstaller = $LocalRepo + "\" + $Package.Name
+	$HumanReadableName = $Package.HumanReadableName
 	
 	IF ($Package.DownloadURL32 -Or $Package.URLGenerator32)
 	{
+		
 		$CurrentInstaller32 = $CurrentInstaller + "-x32"
 		$InstallerName32 = $Package.Name + "-x32"
 		$templocation32 = $env:TEMP + "\" + $Package.Name + "-x32"
@@ -234,10 +589,39 @@ Please ensure that this script has Write permissions to this location, and try a
 			$InstallerName32 = $InstallerName32 + ".exe"
 			$templocation32 = $templocation32 + ".exe"
 		}
+		
+		$GetSoftwareVersionResults = Get-SoftwareVersion -BitCount "32" -CurrentInstaller $CurrentInstaller32 -Package $Package -Software $Software
+		$CurrentVersion = $GetSoftwareVersionResults[0]
+		$ForceDownload = $GetSoftwareVersionResults[1]
+		
+		$GenerateURLResults = Generate-URL -BitCount "32" -CurrentVersion $CurrentVersion -Package $Package -WebClient $WebClient
+		$DownloadURL = $GenerateURLResults[0]
+		IF ($GenerateURLResults[1] -eq "No Version Retrieved") {
+			$LatestVersion = "This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them."
+			$LatestVersion = $Null
+		} ELSE {
+			$LatestVersion = $GenerateURLResults[1]
+		}
+		
+		IF ($ForceDownload)
+		{
+			$LatestVersion = $Null
+		}
+		
+		$LatestVersion = Get-LatestInstaller -CurrentVersion $CurentVersion -DownloadURL $DownloadURL -LatestVersion $LatestVersion -Package $Package -templocation $templocation32
+		
+		IF ($LatestVersion -eq "This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them.")
+		{
+			Write-Debug "Wow. I mean WOW! Please find this developer and hit them. HARD. Their version string was actually 'This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them.'. There are no words."
+		}
+		
+		Update-Software -ArchiveOldVersions $ArchiveOldVersions -BitCount "32" -CurrentInstaller $CurrentInstaller32 -CurrentVersion $CurrentVersion -HumanReadableName $HumanReadableName -InstallerName $InstallerName32 -LatestVersion $LatestVersion -LocalRepo $LocalRepo -Software $Software -SoftwareMaster $SoftwareMaster -SoftwareMasterFile $SoftwareMasterFile -templocation $templocation32
+		
 	}
 	
 	IF ($Package.DownloadURL64 -Or $Package.URLGenerator64)
 	{
+		
 		$CurrentInstaller64 = $CurrentInstaller + "-x64"
 		$InstallerName64 = $Package.Name + "-x64"
 		$templocation64 = $env:TEMP + "\" + $Package.Name + "-x64"
@@ -246,542 +630,41 @@ Please ensure that this script has Write permissions to this location, and try a
 			$CurrentInstaller64 = $CurrentInstaller64 + ".msi"
 			$InstallerName64 = $InstallerName64 + ".msi"
 			$templocation64 = $templocation64 + ".msi"
+			
 		} ELSE {
 			$CurrentInstaller64 = $CurrentInstaller64 + ".exe"
 			$InstallerName64 = $InstallerName64 + ".exe"
 			$templocation64 = $templocation64 + ".exe"
 		}
-	}
-	
-	#Get Current 32 Bit Version
-	IF ($Package.DownloadURL32 -Or $Package.URLGenerator32)
-	{
-		IF (!($Software.Versions32))
-		{			
-			IF ($Package.IsMSI)
-			{
-				IF ($CurrentInstaller32)
-				{
-					IF (!(Test-Path $CurrentInstaller32))
-					{
-						$CurrentVersion32 = "0"
-					} ELSE {
-						[string]$CurrentVersion32 = MSI-Version $CurrentInstaller32
-						$CurrentVersion32 = $CurrentVersion32.Trim()
-						
-						IF (!($Software.Versions32))
-						{
-							$Versions32 = $SoftwareMaster.CreateElement("Versions32")
-							$Software.AppendChild($Versions32) | Out-Null
-							$SoftwareMaster.Save($SoftwareMasterFile)
-						} ELSE {
-							$Versions32 = $Software.Versions32
-						}
-						$version = $SoftwareMaster.CreateElement("version")
-						$Versions32.AppendChild($version) | Out-Null
-						$version.SetAttribute("name", $CurrentVersion32)
-						$SoftwareMaster.Save($SoftwareMasterFile)
-					}
-				}
-			} ELSE {
-				IF ($CurrentInstaller32)
-				{
-					IF (!(Test-Path $CurrentInstaller32))
-					{
-						$CurrentVersion32 = "0"
-					} ELSE {
-						[string]$CurrentVersion32 = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($CurrentInstaller32).FileVersion
-						$CurrentVersion32 = $CurrentVersion32.Trim()
-						IF ($CurrentVersion32 -eq $Null -Or $CurrentVersion32 -eq "")
-						{
-							$CurrentVersion32 = (Get-Item $CurrentInstaller32).Length
-						} ELSE {
-							IF (!($Software.Versions32))
-							{
-								$Versions32 = $SoftwareMaster.CreateElement("Versions32")
-								$Software.AppendChild($Versions32) | Out-Null
-								$SoftwareMaster.Save($SoftwareMasterFile)
-							} ELSE {
-								$Versions32 = $Software.Versions32
-							}
-							$version = $SoftwareMaster.CreateElement("version")
-							$Versions32.AppendChild($version) | Out-Null
-							$version.SetAttribute("name", $CurrentVersion32)
-							$SoftwareMaster.Save($SoftwareMasterFile)
-						}
-					}
-				}					
-			}
+		
+		$GetSoftwareVersionResults = Get-SoftwareVersion -BitCount "64" -CurrentInstaller $CurrentInstaller64 -Package $Package -Software $Software
+		$CurrentVersion = $GetSoftwareVersionResults[0]
+		$ForceDownload = $GetSoftwareVersionResults[1]
+		
+		$GenerateURLResults = Generate-URL -BitCount "64" -CurrentVersion $CurrentVersion -Package $Package -WebClient $WebClient
+		$DownloadURL = $GenerateURLResults[0]
+		IF ($GenerateURLResults[1] -eq "No Version Retrieved") {
+			$LatestVersion = "This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them."
+			$LatestVersion = $Null
 		} ELSE {
-			IF ($CurrentInstaller32)
-			{
-				$CurrentVersion32 = $Software.Versions64.version | Sort-Object $_.name -descending | Select-Object -First 1
-				$CurrentVersion32 = $CurrentVersion32.name
-				IF (!(Test-Path $CurrentInstaller32))
-				{
-					$ForceDownload32 = $True
-				}
-			}		
-		}
-	}
-	
-	#Get Current 64 Bit Version
-	
-	IF ($Package.DownloadURL64 -Or $Package.URLGenerator64)
-	{
-		IF (!($Software.Versions64))
-		{
-			IF ($Package.IsMSI)
-			{
-				Write-Output $Package.IsMSI
-				Write-Output Test
-				IF ($CurrentInstaller64)
-				{
-					IF (!(Test-Path $CurrentInstaller64))
-					{
-						$CurrentVersion64 = "0"
-					} ELSE {
-						[string]$CurrentVersion64 = MSI-Version $CurrentInstaller64
-						$CurrentVersion64 = $CurrentVersion64.Trim()
-						
-						IF (!($Software.Versions64))
-						{
-							$Versions64 = $SoftwareMaster.CreateElement("Versions64")
-							$Software.AppendChild($Versions64) | Out-Null
-							$SoftwareMaster.Save($SoftwareMasterFile)
-						} ELSE {
-							$Versions64 = $Software.Versions64
-						}
-						$version = $SoftwareMaster.CreateElement("version")
-						$Versions64.AppendChild($version) | Out-Null
-						$version.SetAttribute("name", $CurrentVersion64)
-						$SoftwareMaster.Save($SoftwareMasterFile)
-					}
-				}
-			} ELSE {
-				IF ($CurrentInstaller64)
-				{
-					IF (!(Test-Path $CurrentInstaller64))
-					{
-						$CurrentVersion64 = "0"
-					} ELSE {
-						[string]$CurrentVersion64 = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($CurrentInstaller64).FileVersion
-						$CurrentVersion64 = $CurrentVersion64.Trim()
-						IF ($CurrentVersion64 -eq $Null -Or $CurrentVersion64 -eq "")
-						{
-							$CurrentVersion64 = (Get-Item $CurrentInstaller64).Length
-						} ELSE {
-							IF (!($Software.Versions64))
-							{
-								$Versions64 = $SoftwareMaster.CreateElement("Versions64")
-								$Software.AppendChild($Versions64) | Out-Null
-								$SoftwareMaster.Save($SoftwareMasterFile)
-							} ELSE {
-								$Versions64 = $Software.Versions64
-							}
-							$version = $SoftwareMaster.CreateElement("version")
-							$Versions64.AppendChild($version) | Out-Null
-							$version.SetAttribute("name", $CurrentVersion64)
-							$SoftwareMaster.Save($SoftwareMasterFile)
-						}
-					}
-				}					
-			}
-		} ELSE {
-			IF ($CurrentInstaller64)
-			{
-				$CurrentVersion64 = $Software.Versions64.version | Sort-Object $_.name -descending | Select-Object -First 1
-				$CurrentVersion64 = $CurrentVersion64.name
-				IF (!(Test-Path $CurrentInstaller64))
-				{
-					$ForceDownload64 = $True
-				}
-			}		
-		}
-	}
-	
-	IF (!($Package.DownloadURL32))
-	{
-		IF (($Package.URLGenerator32.URLGenerator).Count -ne 0)
-		{
-			$URLGenerator = ""
-			$Package.URLGenerator32.URLGenerator | ForEach {
-				$URLGenerator = $URLGenerator + "`r`n" + $_
-			}
-			$URLGenerator = [scriptblock]::Create($URLGenerator)
-			$VersionURL = Invoke-Command -scriptblock {param($CurrentVersion32, $WebClient)& $URLGenerator} -ArgumentList $CurrentVersion32,$WebClient
-			IF (!($VersionURL -like "Error*") -Or !($VersionURL -like "Exception*"))
-			{
-				IF ($VersionURL.Count -eq 2)
-				{
-					$DownloadURL32 = $VersionURL[0]
-					[string]$LatestVersion32 = $VersionURL[1]
-					$LatestVersion32 = $LatestVersion32.Trim()
-				} ELSEIF ($VersionURL -ne $Null) {
-					$DownloadURL32 = $VersionURL
-				}
-			} ELSE {
-			
-				Write-Debug "Error occurred while retrieving URL for package $PackageName
-				The error was $VersionURL"
-				Continue
-			}
-		}
-	} ELSE {
-		$DownloadURL32 = $Package.DownloadURL32
-	}
-	
-	IF (!($Package.DownloadURL64))
-	{
-		IF (($Package.URLGenerator64.URLGenerator).Count -ne 0)
-		{
-			$URLGenerator = ""
-			$Package.URLGenerator64.URLGenerator | ForEach {
-				$URLGenerator = $URLGenerator + "`r`n" + $_
-			}
-			$URLGenerator = [scriptblock]::Create($URLGenerator)
-			$VersionURL = Invoke-Command -scriptblock {param($CurrentVersion64, $WebClient)& $URLGenerator} -ArgumentList $CurrentVersion64,$WebClient
-			IF (!($VersionURL -like "Error*"))
-			{
-				IF ($VersionURL.Count -eq 2)
-				{
-					$DownloadURL64 = $VersionURL[0]
-					[string]$LatestVersion64 = $VersionURL[1]
-					$LatestVersion64 = $LatestVersion64.Trim()
-				} ELSEIF ($VersionURL -ne $Null) {
-					$DownloadURL64 = $VersionURL
-				}
-			} ELSE {
-			
-				Write-Debug "Error occurred while retrieving URL for package $PackageName
-				The error was $VersionURL"
-				Continue
-			}
-		}
-	} ELSE {
-		$DownloadURL64 = $Package.DownloadURL64
-	}
-	
-	#Get New Installer if Necessary
-	
-	IF ($ForceDownload32)
-	{
-		$CurrentVersion32 = $Null
-		IF ($LatestVersion32 -eq $Null)
-		{
-			$LatestVersion32 = "1"
-		}
-	}
-	
-	IF ($ForceDownload64)
-	{
-		$CurrentVersion64 = $Null
-		IF ($LatestVersion64 -eq $Null)
-		{
-			$LatestVersion64 = "1"
-		}
-	}
-	
-	IF ($Package.IsMSI)
-	{	
-		IF ($DownloadURL32 -ne $Null)
-		{
-			IF ($LatestVersion32 -eq $Null -Or (!($LatestVersion32)))
-			{
-				$LatestVersion32 = $CurrentVersion32
-				Get-NewInstaller $DownloadURL32 $templocation32
-				[string]$LatestVersion32 = MSI-Version $templocation32
-				$LatestVersion32 = $LatestVersion32.Trim()
-			} ELSE {
-				IF ($CurrentVersion32 -ne $LatestVersion32)
-				{
-					Get-NewInstaller $DownloadURL32 $templocation32
-					IF ($ForceDownload32)
-					{
-						[string]$LatestVersion32 = MSI-Version $templocation32
-						$LatestVersion32 = $LatestVersion32.Trim()
-					}
-				}
-			}
+			$LatestVersion = $GenerateURLResults[1]
 		}
 		
-		IF ($DownloadURL64 -ne $Null)
+		IF ($ForceDownload)
 		{
-			IF ($LatestVersion64 -eq $Null -Or (!($LatestVersion64)))
-			{
-				$LatestVersion64 = $CurrentVersion64
-				Get-NewInstaller $DownloadURL64 $templocation64
-				[string]$LatestVersion64 = MSI-Version $templocation64
-				$LatestVersion64 = $LatestVersion64.Trim()
-			} ELSE {
-				IF ($CurrentVersion64 -ne $LatestVersion64)
-				{
-					Get-NewInstaller $DownloadURL64 $templocation64
-					IF ($ForceDownload64)
-					{
-						[string]$LatestVersion64 = MSI-Version $templocation64
-						$LatestVersion64 = $LatestVersion64.Trim()
-					}
-				}
-			}
-		}
-	} ELSE {
-		IF ($DownloadURL32)
-		{
-			IF ($LatestVersion32 -eq $Null -Or (!($LatestVersion32)))
-			{
-				$LatestVersion32 = $CurrentVersion32				
-				Get-NewInstaller $DownloadURL32 $templocation32
-				[string]$LatestVersion32 = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($templocation32).FileVersion
-				$LatestVersion32 = $LatestVersion32.Trim()
-				IF ($LatestVersion32 -eq $Null -Or $LatestVersion32 -eq "")
-				{
-					$LatestVersion32 = (Get-Item $templocation32).Length
-					$LatestVersion32 = $LatestVersion32.Trim()
-					$NoVersion = $True
-				}
-			} ELSE {
-				IF ($CurrentVersion32 -ne $LatestVersion32)
-				{
-					Get-NewInstaller $DownloadURL32 $templocation32
-					IF ($ForceDownload32)
-					{
-						[string]$LatestVersion32 = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($templocation32).FileVersion
-						$LatestVersion32 = $LatestVersion32.Trim()
-					}
-				}
-			}
+			$LatestVersion = $Null
 		}
 		
-		IF ($DownloadURL64)
+		$LatestVersion = Get-LatestInstaller -CurrentVersion $CurentVersion -DownloadURL $DownloadURL -ForceDownload $ForceDownload -LatestVersion $LatestVersion -Package $Package -templocation $templocation64
+		
+		IF ($LatestVersion -eq "This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them.")
 		{
-			IF ($LatestVersion64 -eq $Null -Or (!($LatestVersion64)))
-			{
-				$LatestVersion64 = $CurrentVersion64
-				Get-NewInstaller $DownloadURL64 $templocation64
-				[string]$LatestVersion64 = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($templocation64).FileVersion
-				$LatestVersion64 = $LatestVersion64.Trim()
-				IF ($LatestVersion64 -eq $Null -Or $LatestVersion64 -eq "")
-				{
-					$LatestVersion64 = (Get-Item $templocation64).Length
-					$LatestVersion64 = $LatestVersion64.Trim()
-					$NoVersion = $True
-				}
-			} ELSE {
-				IF ($CurrentVersion64 -ne $LatestVersion64)
-				{
-					Get-NewInstaller $DownloadURL64 $templocation64
-					IF ($ForceDownload64)
-					{
-						[string]$LatestVersion64 = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($templocation64).FileVersion
-						$LatestVersion64 = $LatestVersion64.Trim()
-					}
-				}
-			}
+			Write-Debug "Wow. I mean WOW! Please find this developer and hit them. HARD. Their version string was actually 'This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them.'. There are no words."
 		}
-	}
-	
-	$HumanReadableName = $Package.HumanReadableName
-	
-	IF ($CurrentInstaller32 -ne $Null)
-	{
-		IF ($CurrentVersion32 -eq $LatestVersion32)
-		{
-			Write-Output "No New Version of $HumanReadableName 32 Bit Available`r`n"
-			Start-Job -ScriptBlock {
-				param($FileDelete)& {
-					$Counter = 0
-					WHILE (Test-Path $FileDelete -And $Counter -lt 13)
-					{
-						Remove-Item $FileDelete -Force -ErrorAction SilentlyContinue
-						Start-Sleep 5
-						$Counter++
-					}
-				}
-			} -ArgumentList $templocation32 | out-null
-		} ELSE {
-			Write-Output "New Version of $HumanReadableName 32 Bit Available!`r`n"
 		
-			IF ($Configuration.config.ArchiveOldVersions)
-			{
-				IF ($CurrentVersion32 -ne 0 -And $CurrentVersion32 -ne $Null)
-				{
-					$OldRepo = $LocalRepo + "\OldVersions"
-					IF (!(Test-Path $OldRepo))
-					{
-						Try
-						{
-							New-Item $OldRepo -Type Directory -ErrorAction Stop | Out-Null
-						} Catch {
-							Write-Debug "Cannot create archive directory $OldRepo.
-							Skipping Archive Process"
-						}
-					}
-			
-					$OldRepo = $OldRepo + "\" + $CurrentVersion32
-					Try
-					{
-						New-Item $OldRepo -Type Directory -ErrorAction Stop | Out-Null
-					} Catch {
-						Write-Debug "Cannot create archive directory $OldRepo.
-						Skipping Archive Process"
-					} Finally {
-						Try
-						{
-							Copy-Item $CurrentInstaller32 $OldRepo -Force -ErrorAction Stop
-						} Catch {
-							Write-Debug "Cannot archive installer $CurrentInstaller32.
-							Skipping Archive Process"
-						}
-					}
-					$ArchiveInstaller32 = $OldRepo + "\" + $InstallerName32
-					$Version32 = $Software.Versions32.version | Where-Object { $_.name -eq $CurrentVersion32 }
-					$Version32.Location = $ArchiveInstaller32
-					$SoftwareMaster.Save($SoftwareMasterFile)
-					Remove-Variable Version32
-				}
-			}
+		Update-Software -ArchiveOldVersions $ArchiveOldVersions -BitCount "64" -CurrentInstaller $CurrentInstaller64 -CurrentVersion $CurrentVersion -HumanReadableName $HumanReadableName -InstallerName $InstallerName64 -LatestVersion $LatestVersion -LocalRepo $LocalRepo -Software $Software -SoftwareMaster $SoftwareMaster -SoftwareMasterFile $SoftwareMasterFile -templocation $templocation64
 		
-			Try
-			{
-				Copy-Item $templocation32 $LocalRepo -Force -ErrorAction Stop
-			} Catch {
-				write-output "Could not copy new installer to $LocalRepo.
-				Please ensure that this script has Write permissions to this location, and try again.`r`n"
-			} Finally {
-				write-output "$HumanReadableName 32 Bit updated to version $LatestVersion32!`r`n"
-			}
-			Start-Job -ScriptBlock {
-				param($FileDelete)& {
-					$Counter = 0
-					WHILE (Test-Path $FileDelete -And $Counter -lt 13)
-					{
-						Remove-Item $FileDelete -Force -ErrorAction SilentlyContinue
-						Start-Sleep 5
-						$Counter++
-					}
-				}
-			} -ArgumentList $templocation32 | out-null
-			
-			$version = $SoftwareMaster.CreateElement("version")
-			
-			IF (!($Software.Versions32))
-			{
-				$Versions32 = $SoftwareMaster.CreateElement("Versions32")
-				$Software.AppendChild($Versions32) | Out-Null
-				$SoftwareMaster.Save($SoftwareMasterFile)
-			} ELSE {
-				$Versions32 = $Software.Versions32
-			}
-			
-			$Versions32.AppendChild($version) | Out-Null
-			$version.SetAttribute("name", $LatestVersion32)
-			$location = $SoftwareMaster.CreateElement("Location")
-			$location.InnerText = $CurrentInstaller32
-			$version.AppendChild($location) | Out-Null
-			$SoftwareMaster.Save($SoftwareMasterFile)		
-		}
-	}
-	
-	IF ($CurrentInstaller64 -ne $Null)
-	{
-		IF ($CurrentVersion64 -eq $LatestVersion64)
-		{
-			Write-Output "No New Version of $HumanReadableName 64 Bit Available`r`n"
-			Start-Job -ScriptBlock {
-				param($FileDelete)& {
-					$Counter = 0
-					WHILE (Test-Path $FileDelete -And $Counter -lt 13)
-					{
-						Remove-Item $FileDelete -Force -ErrorAction SilentlyContinue
-						Start-Sleep 5
-						$Counter++
-					}
-				}
-			} -ArgumentList $templocation64 | out-null
-		} ELSE {
-			Write-Output "New Version of $HumanReadableName 64 Bit Available!`r`n"
-		
-			IF ($Configuration.config.ArchiveOldVersions)
-			{
-				IF ($CurrentVersion64 -ne 0 -And $CurrentVersion64 -ne $Null)
-				{
-					$OldRepo = $LocalRepo + "\OldVersions"
-					IF (!(Test-Path $OldRepo))
-					{
-						Try
-						{
-							New-Item $OldRepo -Type Directory -ErrorAction Stop | Out-Null
-						} Catch {
-							Write-Debug "Cannot create archive directory $OldRepo.
-							Skipping Archive Process"
-						}
-					}
-			
-					$OldRepo = $OldRepo + "\" + $CurrentVersion64
-					Try
-					{
-						New-Item $OldRepo -Type Directory -ErrorAction Stop | Out-Null
-					} Catch {
-						Write-Debug "Cannot create archive directory $OldRepo.
-						Skipping Archive Process"
-					} Finally {
-						Try
-						{
-							Copy-Item $CurrentInstaller64 $OldRepo -Force -ErrorAction Stop
-						} Catch {
-							Write-Debug "Cannot archive installer $CurrentInstaller64.
-							Skipping Archive Process"
-						}
-					}
-					$ArchiveInstaller64 = $OldRepo + "\" + $InstallerName64
-					$Version64 = $Software.Versions64.version | Where-Object { $_.name -eq $CurrentVersion64 }
-					$Version64.Location = $ArchiveInstaller64
-					$SoftwareMaster.Save($SoftwareMasterFile)
-					Remove-Variable Version64
-				}
-			}
-		
-			Try
-			{
-				Copy-Item $templocation64 $LocalRepo -Force -ErrorAction Stop
-			} Catch {
-				write-output "Could not copy new installer to $LocalRepo.
-				Please ensure that this script has Write permissions to this location, and try again.`r`n"
-			} Finally {
-				write-output "$HumanReadableName 64 Bit updated to version $LatestVersion64!`r`n"
-			}
-			Start-Job -ScriptBlock {
-				param($FileDelete)& {
-					$Counter = 0
-					WHILE (Test-Path $FileDelete -And $Counter -lt 13)
-					{
-						Remove-Item $FileDelete -Force -ErrorAction SilentlyContinue
-						Start-Sleep 5
-						$Counter++
-					}
-				}
-			} -ArgumentList $templocation64 | out-null
-			$version = $SoftwareMaster.CreateElement("version")
-			
-			IF (!($Software.Versions64))
-			{
-				$Versions64 = $SoftwareMaster.CreateElement("Versions64")
-				$Software.AppendChild($Versions64) | Out-Null
-				$SoftwareMaster.Save($SoftwareMasterFile)
-			} ELSE {
-				$Versions64 = $Software.Versions64
-			}
-			
-			$Versions64.AppendChild($version) | Out-Null
-			$version.SetAttribute("name", $LatestVersion64)
-			$location = $SoftwareMaster.CreateElement("Location")
-			$location.InnerText = $CurrentInstaller64
-			$version.AppendChild($location) | Out-Null
-			$SoftwareMaster.Save($SoftwareMasterFile)		
-		}
-	}
-	
+	}	
 }
 
 #Cleanup Package and Software Master Files
