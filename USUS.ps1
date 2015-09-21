@@ -292,7 +292,7 @@ Function MSI-Version([IO.FileInfo]$Path)
 	}
 }
 
-Function Update-Software ($ArchiveOldVersions, $BitCount, $CurrentInstaller, $CurrentVersion, $HumanReadableName, $InstallerName, $LatestVersion, $LocalRepo, $Software, $SoftwareMaster, $SoftwareMasterFile, $templocation)
+Function Update-Software ($ArchiveOldVersions, $BitCount, $CurrentInstaller, $CurrentVersion, $HumanReadableName, $InstallerName, $LatestVersion, $LocalRepo, $Package, $Software, $SoftwareMaster, $SoftwareMasterFile, $templocation)
 {
 	IF ($CurrentInstaller -ne $Null)
 	{
@@ -408,6 +408,24 @@ Function Update-Software ($ArchiveOldVersions, $BitCount, $CurrentInstaller, $Cu
 			$location = $SoftwareMaster.CreateElement("Location")
 			$location.InnerText = $CurrentInstaller
 			$version.AppendChild($location) | Out-Null
+			IF ($Package.SilentInstall)
+			{
+				$SilentInstall = $SoftwareMaster.CreateElement("SilentInstall")
+				$SilentInstall.InnerText = "True"
+				$version.AppendChild($SilentInstall) | Out-Null
+			}
+			IF ($Package.NoReboot)
+			{
+				$NoReboot = $SoftwareMaster.CreateElement("NoReboot")
+				$NoReboot.InnerText = "True"
+				$version.AppendChild($NoReboot) | Out-Null
+			}
+			IF ($Package.CustomOptions)
+			{
+				$CustomOptions = $SoftwareMaster.CreateElement("CustomOptions")
+				$CustomOptions.InnerText = $Package.CustomOptions
+				$version.AppendChild($CustomOptions) | Out-Null
+			}
 			$SoftwareMaster.Save($SoftwareMasterFile)		
 		}
 	}
@@ -672,7 +690,7 @@ Please ensure that this script has Write permissions to this location, and try a
 			Write-Debug "Wow. I mean WOW! Please find this developer and hit them. HARD. Their version string was actually 'This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them.'. There are no words."
 		}
 		
-		Update-Software -ArchiveOldVersions $ArchiveOldVersions -BitCount "32" -CurrentInstaller $CurrentInstaller32 -CurrentVersion $CurrentVersion -HumanReadableName $HumanReadableName -InstallerName $InstallerName32 -LatestVersion $LatestVersion -LocalRepo $LocalRepo -Software $Software -SoftwareMaster $SoftwareMaster -SoftwareMasterFile $SoftwareMasterFile -templocation $templocation32
+		Update-Software -ArchiveOldVersions $ArchiveOldVersions -BitCount "32" -CurrentInstaller $CurrentInstaller32 -CurrentVersion $CurrentVersion -HumanReadableName $HumanReadableName -InstallerName $InstallerName32 -LatestVersion $LatestVersion -LocalRepo $LocalRepo -Package $Package -Software $Software -SoftwareMaster $SoftwareMaster -SoftwareMasterFile $SoftwareMasterFile -templocation $templocation32
 		
 	}
 	
@@ -719,7 +737,7 @@ Please ensure that this script has Write permissions to this location, and try a
 			Write-Debug "Wow. I mean WOW! Please find this developer and hit them. HARD. Their version string was actually 'This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them.'. There are no words."
 		}
 		
-		Update-Software -ArchiveOldVersions $ArchiveOldVersions -BitCount "64" -CurrentInstaller $CurrentInstaller64 -CurrentVersion $CurrentVersion -HumanReadableName $HumanReadableName -InstallerName $InstallerName64 -LatestVersion $LatestVersion -LocalRepo $LocalRepo -Software $Software -SoftwareMaster $SoftwareMaster -SoftwareMasterFile $SoftwareMasterFile -templocation $templocation64
+		Update-Software -ArchiveOldVersions $ArchiveOldVersions -BitCount "64" -CurrentInstaller $CurrentInstaller64 -CurrentVersion $CurrentVersion -HumanReadableName $HumanReadableName -InstallerName $InstallerName64 -LatestVersion $LatestVersion -LocalRepo $LocalRepo -Package $Package -Software $Software -SoftwareMaster $SoftwareMaster -SoftwareMasterFile $SoftwareMasterFile -templocation $templocation64
 		
 	}	
 }
