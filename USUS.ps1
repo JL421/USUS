@@ -4,8 +4,8 @@
 .NOTES
 	File Name	: USUS.ps1
 	Author		: Jason Lorsung (jason@jasonlorsung.com)
-	Last Update : 2015-09-16
-	Version		: 2.0
+	Last Update : 2015-09-21
+	Version		: 2.0 Beta
 .EXAMPLE
 	USUS.ps1 -ConfigFile "D:\Data\Config.xml"
 .FLAGS
