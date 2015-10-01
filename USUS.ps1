@@ -4,8 +4,8 @@
 .NOTES
 	File Name	: USUS.ps1
 	Author		: Jason Lorsung (jason@jasonlorsung.com)
-	Last Update : 2015-09-21
-	Version		: 2.0 Beta
+	Last Update : 2015-10-1
+	Version		: 2.0 Release
 .EXAMPLE
 	USUS.ps1 -ConfigFile "D:\Data\Config.xml"
 .FLAGS
@@ -14,6 +14,10 @@
 #>
 
 param([Parameter(Mandatory=$True)][string]$ConfigFile, [switch]$DebugEnable)
+
+#Get current date and time
+
+$Timestamp = $(get-date -f yyyy-MM-dd-HH:mm)
 
 #Functions
 
@@ -354,6 +358,17 @@ Function Update-Software ($ArchiveOldVersions, $BitCount, $CurrentInstaller, $Cu
 					}
 					
 					$Version.Location = $ArchiveInstaller
+					$IsArchived = $SoftwareMaster.CreateElement("IsArchived")
+					IF (!($Version.Updated))
+					{
+						$Updated = $SoftwareMaster.CreateElement("Updated")
+						$Version.AppendChild($Updated) | Out-Null
+						$Updated.InnerText = $Timestamp
+					} ELSE {
+						$Version.Updated = $Timestamp
+					}
+					$Version.AppendChild($IsArchived) | Out-Null
+					$IsArchived.InnerText = ("True")
 					$SoftwareMaster.Save($SoftwareMasterFile)
 					Remove-Variable Version
 				}
@@ -426,6 +441,11 @@ Function Update-Software ($ArchiveOldVersions, $BitCount, $CurrentInstaller, $Cu
 				$CustomOptions.InnerText = $Package.CustomOptions
 				$version.AppendChild($CustomOptions) | Out-Null
 			}
+			
+			$Updated = $SoftwareMaster.CreateElement("Updated")
+			$Version.AppendChild($Updated) | Out-Null
+			$Updated.InnerText = $Timestamp
+			
 			$SoftwareMaster.Save($SoftwareMasterFile)		
 		}
 	}
