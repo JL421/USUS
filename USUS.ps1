@@ -3,7 +3,7 @@
 	Downloads Update packages from specified sources, and updates the Software Repository.
 .NOTES
 	File Name	: USUS.ps1
-	Author		: Jason Lorsung (jason@jasonlorsung.com)
+	Author		: Jason Lorsung (jason@ususcript.com)
 	Last Update : 2015-10-1
 	Version		: 2.0 Release
 .EXAMPLE
