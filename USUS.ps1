@@ -17,7 +17,7 @@ param([Parameter(Mandatory=$True)][string]$ConfigFile, [switch]$DebugEnable)
 
 #Get current date and time
 
-$Timestamp = $(get-date -f yyyy-MM-dd-HH:mm)
+[string]$Timestamp = $(get-date -f yyyy-MM-dd-HH:mm)
 
 #Functions
 
@@ -407,6 +407,12 @@ Function Update-Software ($ArchiveOldVersions, $BitCount, $CurrentInstaller, $Cu
 				} ELSE {
 					$Versions = $Software.Versions32
 				}
+				
+				IF ($Package.Extras32)
+				{
+					$version.AppendChild($SoftwareMaster.ImportNode($Package.Extras32,$true)) | Out-Null
+				}
+				
 			} ELSEIF ($BitCount -eq "64") {
 				IF (!($Software.Versions64))
 				{
@@ -416,34 +422,21 @@ Function Update-Software ($ArchiveOldVersions, $BitCount, $CurrentInstaller, $Cu
 				} ELSE {
 					$Versions = $Software.Versions64
 				}
+				
+				IF ($Package.Extras64)
+				{
+					$version.AppendChild($SoftwareMaster.ImportNode($Package.Extras64,$true)) | Out-Null
+				}
+				
 			}
 			
 			$Versions.PrependChild($version) | Out-Null
 			$version.SetAttribute("name", $LatestVersion)
 			$location = $SoftwareMaster.CreateElement("Location")
 			$location.InnerText = $CurrentInstaller
-			$version.AppendChild($location) | Out-Null
-			IF ($Package.SilentInstall)
-			{
-				$SilentInstall = $SoftwareMaster.CreateElement("SilentInstall")
-				$SilentInstall.InnerText = "True"
-				$version.AppendChild($SilentInstall) | Out-Null
-			}
-			IF ($Package.NoReboot)
-			{
-				$NoReboot = $SoftwareMaster.CreateElement("NoReboot")
-				$NoReboot.InnerText = "True"
-				$version.AppendChild($NoReboot) | Out-Null
-			}
-			IF ($Package.CustomOptions)
-			{
-				$CustomOptions = $SoftwareMaster.CreateElement("CustomOptions")
-				$CustomOptions.InnerText = $Package.CustomOptions
-				$version.AppendChild($CustomOptions) | Out-Null
-			}
-			
+			$version.AppendChild($location) | Out-Null			
 			$Updated = $SoftwareMaster.CreateElement("Updated")
-			$Version.AppendChild($Updated) | Out-Null
+			$version.AppendChild($Updated) | Out-Null
 			$Updated.InnerText = $Timestamp
 			
 			$SoftwareMaster.Save($SoftwareMasterFile)		
