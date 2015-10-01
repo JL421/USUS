@@ -17,7 +17,7 @@ param([Parameter(Mandatory=$True)][string]$ConfigFile, [switch]$DebugEnable)
 
 #Get current date and time
 
-[string]$Timestamp = $(get-date -f yyyy-MM-dd-HH:mm)
+[string]$Timestamp = $(get-date -f "yyyy-MM-dd HH:mm")
 
 #Functions
 
