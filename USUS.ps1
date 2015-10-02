@@ -144,8 +144,8 @@ Function Get-LatestInstaller ($CurentVersion, $DownloadURL, $LatestVersion, $Pac
 				{
 					$LatestVersion = (Get-Item $templocation).Length
 					$LatestVersion = $LatestVersion.Trim()
-					return $LatestVersion
 				}
+				return $LatestVersion
 			} ELSE {
 				IF ($CurrentVersion -ne $LatestVersion)
 				{
@@ -156,7 +156,6 @@ Function Get-LatestInstaller ($CurentVersion, $DownloadURL, $LatestVersion, $Pac
 						$LatestVersion = $LatestVersion.Trim()
 						return $LatestVersion
 					}
-					
 					return $LatestVersion
 				}
 				
