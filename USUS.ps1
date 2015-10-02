@@ -9,7 +9,7 @@
 .EXAMPLE
 	USUS.ps1 -ConfigFile "D:\Data\Config.xml"
 .FLAGS
-	-ConfigFile		Use this to specify a Config.XML file for the script to user
+	-ConfigFile		Use this to specify a Config.XML file for the script to use
 	-DebugEnable	Use this to enable Debug output
 #>
 
