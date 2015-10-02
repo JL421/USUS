@@ -95,6 +95,16 @@ Function Generate-URL ($BitCount, $CurrentVersion, $Package, $WebClient)
 	}
 }
 
+Function Get-FtpDirectory{
+	Param($uri,$cred)
+
+	[System.Net.FtpWebRequest]$request = [System.Net.WebRequest]::Create($uri)
+	$request.Method = [System.Net.WebRequestMethods+FTP]::ListDirectory
+	$request.Credentials = $cred.GetNetworkCredential()
+	$response = $request.GetResponse()
+	Receive-Stream $response.GetResponseStream()
+}
+
 Function Get-LatestInstaller ($CurentVersion, $DownloadURL, $LatestVersion, $Package, $templocation)
 {
 	IF ($Package.IsMSI)
@@ -293,6 +303,35 @@ Function MSI-Version([IO.FileInfo]$Path)
 	} 
 	CATCH {
 		Write-Output $_.Exception.Message
+	}
+}
+
+Function Receive-Stream {
+	Param([System.IO.Stream]$reader,$fileName,$encoding = [System.Text.Encoding]::GetEncoding($Null))
+
+	IF($fileName) {
+		$writer = new-object System.IO.FileStream $fileName, "Create"
+	} ELSE {
+		[string]$output = ""
+	}
+
+	[byte[]]$buffer = new-object byte[] 4096
+	[int]$total = [int]$count = 0
+	DO
+	{
+		$count = $reader.Read($buffer, 0, $buffer.Length)
+		IF ($fileName)
+		{
+			$writer.Write($buffer, 0, $count)
+		} ELSE {
+			$output += $encoding.GetString($buffer, 0, $count)
+		}
+	} While ($count -gt 0)
+
+	$reader.Close()
+	IF (!($fileName))
+	{
+		$output
 	}
 }
 
