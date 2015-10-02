@@ -59,6 +59,7 @@ The config file is now only 5 lines of XML:
 
  - New USUS package files must be downloaded or created and placed in the Packages Repo folder.
  - There is currently no email reporting functionality, this will be added soon in an Add-On Script
+ - Powershell v3 or above is required for proper functionality
 
 
 -----
@@ -73,18 +74,13 @@ The config file is now only 5 lines of XML:
 
 ##Running the Script
 
- - Run the script from command line, and it will walk you through an initial setup
-
-        powershell.exe -ExecutionPolicy Bypass -NoProfile -File "Path to USUS.ps1"
-
  - Run the script from command line, or create a scheduled task to keep your installers up to date automatically.
 
-        Usage: USUS.ps1 -ConfigDir [Your ConfigDirectory Path]
+        Usage: USUS.ps1 -ConfigFile [Your ConfigFile Path]
 
         Required Flags :
-         -ConfigDir    This is where all of the parts of the script live.
-        This currently contains the PackageRepo, IncludesDir, and Base Config
-    
+         -ConfigFile    This is the path to your Config File XML Document
+  
         Optional Flags :
             -DebugEnable  Use this to enable Debug output
 
