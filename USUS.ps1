@@ -612,6 +612,7 @@ Write-Output "`r`n`r`n"
 ForEach ($Package in $PackageMaster.Packages.Package)
 {	
 	$PackageName = $Package.Name
+	$HumanReadableName = $Package.HumanReadableName
 	
 	IF (!(($SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }).Count -ne 0))
 	{
@@ -619,6 +620,13 @@ ForEach ($Package in $PackageMaster.Packages.Package)
 		$SoftwareMaster.SoftwarePackages.AppendChild($Software) | Out-Null
 		$Software.AppendChild($SoftwareMaster.CreateElement("Name")) | Out-Null
 		$Software.Name = $PackageName
+		$Software.AppendChild($SoftwareMaster.CreateElement("HumanReadableName")) | Out-Null
+		$Software.HumanReadableName = $HumanReadableName
+		IF ($Package.IsMSI)
+		{
+			$Software.AppendChild($SoftwareMaster.CreateElement("IsMSI")) | Out-Null
+			$Software.IsMSI = "True"
+		}
 		$SoftwareMaster.Save($SoftwareMasterFile)
 	} ELSE {
 		$Software = $SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }
@@ -651,7 +659,6 @@ Please ensure that this script has Write permissions to this location, and try a
 	}
 		
 	$CurrentInstaller = $LocalRepo + "\" + $Package.Name
-	$HumanReadableName = $Package.HumanReadableName
 	
 	IF ($Package.DownloadURL32 -Or $Package.URLGenerator32)
 	{
