@@ -1,6 +1,6 @@
 ##What is this?
 
-USUS (Ultimate Software Update Script) is a Windows Powershell Script (v2.0+) that will check for updated installers for just about any installer. If you give it a set of packages to run with, it'll make sure your Installers are on the latest version, and make a useful XML file with all the info any add-on scripts need to make deployment packages.
+USUS (Ultimate Software Update Script) is a Windows Powershell Script (v3.0+) that will check for updated installers for just about any installer. If you give it a set of packages to run with, it'll make sure your Installers are on the latest version, and make a useful XML file with all the info any add-on scripts need to make deployment packages.
 
 -----
 
