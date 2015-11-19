@@ -567,7 +567,7 @@ IF ($Configuration.config.SelfUpdate)
 	
 	$newversion = $WebClient.DownloadString($checkurl)
 	
-	IF ($AutoUpdate -And $newversion -ne "No Updated versions of USUS available." -And $newversion -ne $Null)
+	IF ($AutoUpdate -And $newversion -ne "No Updated version of USUS available." -And $newversion -ne $Null)
 	{
 		$ScriptLocation = $MyInvocation.InvocationName
 		$relaunchusus = '-ExecutionPolicy Bypass -NoProfile -File "' + $ScriptLocation + '" -ConfigFile "' + $ConfigFile + '"'
@@ -584,7 +584,7 @@ IF ($Configuration.config.SelfUpdate)
 		Write-Host "USUS updated!"
 		Start-Process powershell.exe -ArgumentList $relaunchusus
 		Exit
-	} ELSEIF ($newversion -ne "No Updated versions of USUS available." -And $newversion -ne $Null) {
+	} ELSEIF ($newversion -ne "No Updated version of USUS available." -And $newversion -ne $Null) {
 		$newversion = $newversion -split "<br>" | Select-Object -Index 1
 		$newversion = $newversion.TrimStart("Version: ")				
 		IF (($SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq "USUScript" }).Count -ne 0)
@@ -669,6 +669,19 @@ IF ($Configuration.config.PackageUpdate)
 			IF ($AutoUpdate -And (!($newversion -like "No Updated versions of *")) -And $newversion -ne $Null)
 			{
 				$updatedpackagelocation = $Configuration.config.packagesrepo.TrimEnd("\") + "\" + $PackageName + ".xml"
+				IF (($SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }).Count -ne 0)
+				{
+					$CurrentPackage = $SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }
+					IF ($CurrentPackage.PackageInfo)
+					{
+						IF ($CurrentPackage.PackageInfo.NewVersion)
+						{
+							$CurrentPackage.PackageInfo.RemoveChild($CurrentPackage.PackageInfo.SelectSingleNode("NewVersion")) | Out-Null
+							$SoftwareMaster.Save($SoftwareMasterFile)
+						}
+					}
+				}
+				
 				$newversion | Out-File $updatedpackagelocation
 			} ELSEIF ((!($newversion -like "No Updated versions of *")) -And $newversion -ne $Null) {
 				$newversion = $newversion -split "<br>" | Select-Object -Index 1
