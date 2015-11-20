@@ -553,16 +553,16 @@ IF (!(Test-Path $SoftwareMasterFile))
 
 [xml]$SoftwareMaster = Get-Content $SoftwareMasterFile
 
-IF ($Configuration.config.SelfUpdate.AutoUpdate)
-{
-	$AutoUpdate = $True
-}
-
 IF ($Configuration.config.SelfUpdate)
 {
 	$header = "USUS/2.1"
 	$WebClient.Headers.Add("user-agent", $header)
 	$checkurl = "https://www.ususcript.com/api/?selfupdate=true"
+	
+	IF ($Configuration.config.SelfUpdate.AutoUpdate)
+	{
+		$AutoUpdate = $True
+	}
 	
 	IF ($Configuration.config.SelfUpdate.AutoUpdate)
 	{
