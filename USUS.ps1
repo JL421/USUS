@@ -553,6 +553,11 @@ IF (!(Test-Path $SoftwareMasterFile))
 
 [xml]$SoftwareMaster = Get-Content $SoftwareMasterFile
 
+IF ($Configuration.config.SelfUpdate.AutoUpdate)
+{
+	$AutoUpdate = $True
+}
+
 IF ($Configuration.config.SelfUpdate)
 {
 	$header = "USUS/2.1"
@@ -658,6 +663,7 @@ IF ($Configuration.config.PackageUpdate)
 		$header = "USUS/2.1"
 		$WebClient.Headers.Add("user-agent", $header)
 		$checkurl = "https://www.ususcript.com/api/?packagename=" + $PackageName + "&packageversion=" + $PackageVersion
+		
 		IF ($AutoUpdate)
 		{
 			$checkurl = $checkurl + "&autoupdate=true"
@@ -668,6 +674,8 @@ IF ($Configuration.config.PackageUpdate)
 			$newversion = $WebClient.DownloadString($checkurl)
 			IF ($AutoUpdate -And (!($newversion -like "No Updated versions of *")) -And $newversion -ne $Null)
 			{
+				
+				Start-Sleep 10
 				$updatedpackagelocation = $Configuration.config.packagesrepo.TrimEnd("\") + "\" + $PackageName + ".xml"
 				IF (($SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }).Count -ne 0)
 				{
@@ -733,10 +741,6 @@ IF ($Configuration.config.PackageUpdate)
 		Remove-Variable PackageVerify
 		Remove-Variable header
 		Remove-Variable checkurl
-		IF ($AutoUpdate)
-		{
-			Remove-Variable AutoUpdate
-		}
 		IF ($newversion)
 		{
 			Remove-Variable newversion
@@ -755,6 +759,11 @@ IF ($Configuration.config.PackageUpdate)
 		}
 		
 	}
+	IF ($AutoUpdate)
+	{
+		Remove-Variable AutoUpdate
+	}
+
 }
 
 Remove-Variable PackageMaster
