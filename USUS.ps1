@@ -5,7 +5,7 @@
 	File Name	: USUS.ps1
 	Author		: Jason Lorsung (jason@ususcript.com)
 	Last Update : 2015-12-10
-	Version		: 2.1 Release (2.00001)
+	Version		: 2.1 Release (2.1)
 .EXAMPLE
 	USUS.ps1 -ConfigFile "D:\Data\Config.xml"
 .FLAGS
@@ -557,7 +557,7 @@ IF (!(Test-Path $SoftwareMasterFile))
 
 IF ($Configuration.config.SelfUpdate)
 {
-	$header = "USUS/2.00001"
+	$header = "USUS/2.1"
 	$WebClient.Headers.Add("user-agent", $header)
 	$checkurl = "https://www.ususcript.com/api/?selfupdate=true"
 	
@@ -655,7 +655,7 @@ IF ($AddPackage -ne "")
 	
 	ForEach ($Package in $Packagestocheck)
 	{
-		$header = "USUS/2.00001"
+		$header = "USUS/2.1"
 		$WebClient.Headers.Add("user-agent", $header)
 		$checkurl = "https://www.ususcript.com/api/?packagename=" + $Package + "&packageversion=0&autoupdate=true"
 		
