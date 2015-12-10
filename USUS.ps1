@@ -4,17 +4,19 @@
 .NOTES
 	File Name	: USUS.ps1
 	Author		: Jason Lorsung (jason@ususcript.com)
-	Last Update : 2015-11-19
-	Version		: 2.1 Release
+	Last Update : 2015-12-10
+	Version		: 2.1 Release (2.00001)
 .EXAMPLE
 	USUS.ps1 -ConfigFile "D:\Data\Config.xml"
 .FLAGS
 	-ConfigFile				Use this to specify a Config.XML file for the script to use
 	-DebugEnable			Use this to enable Debug output
+	-AddPackage				Use this to search USUScript.com for a package and add it
+	-ReplaceExtras			Use this to enable extras fields from new packages to override old packages
 	-SkipSoftwareUpdates 	Use this to skip updating software on this run
 #>
 
-param([Parameter(Mandatory=$True)][string]$ConfigFile, [switch]$DebugEnable, [switch]$SkipSoftwareUpdates)
+param([Parameter(Mandatory=$True)][string]$ConfigFile, [switch]$DebugEnable, [string]$AddPackage, [switch]$ReplaceExtras, [switch]$SkipSoftwareUpdates)
 
 #Get current date and time
 
@@ -555,7 +557,7 @@ IF (!(Test-Path $SoftwareMasterFile))
 
 IF ($Configuration.config.SelfUpdate)
 {
-	$header = "USUS/2.1"
+	$header = "USUS/2.00001"
 	$WebClient.Headers.Add("user-agent", $header)
 	$checkurl = "https://www.ususcript.com/api/?selfupdate=true"
 	
@@ -647,6 +649,57 @@ Remove-Variable SoftwareMaster
 [xml]$PackageMaster = Get-Content $PackageMasterFile
 [xml]$SoftwareMaster = Get-Content $SoftwareMasterFile
 
+IF ($AddPackage -ne "")
+{	
+	$Packagestocheck = $AddPackage -Split ","
+	
+	ForEach ($Package in $Packagestocheck)
+	{
+		$header = "USUS/2.00001"
+		$WebClient.Headers.Add("user-agent", $header)
+		$checkurl = "https://www.ususcript.com/api/?packagename=" + $Package + "&packageversion=0&autoupdate=true"
+		
+		$newversion = $WebClient.DownloadString($checkurl)
+		IF ((!($newversion -like "No Updated versions of *")) -And $newversion -ne $Null)
+		{
+			$updatedpackagelocation = $Configuration.config.packagesrepo.TrimEnd("\") + "\" + $Package + ".xml"				
+			$newversion | Out-File $updatedpackagelocation
+		} ELSE {
+			Write-Output "No Package named $Package available from USUScript.com"
+			Write-Output "Sorry about that."
+		}
+		
+		Remove-Variable Package
+		Remove-Variable header
+		Remove-Variable checkurl
+		IF ($newversion)
+		{
+			Remove-Variable newversion
+		}
+		IF ($updatedpackagelocation)
+		{
+			Remove-Variable updatedpackagelocation
+		}
+		IF ($CurrentPackage)
+		{
+			Remove-Variable CurrentPackage
+		}
+		IF ($PackageInfo)
+		{
+			Remove-Variable PackageInfo
+		}
+		
+	}
+	Remove-Variable AddPackage
+	Remove-Variable Packagestocheck
+}
+
+Remove-Variable PackageMaster
+Remove-Variable SoftwareMaster
+
+[xml]$PackageMaster = Get-Content $PackageMasterFile
+[xml]$SoftwareMaster = Get-Content $SoftwareMasterFile
+
 
 IF ($Configuration.config.PackageUpdate)
 {
@@ -660,7 +713,7 @@ IF ($Configuration.config.PackageUpdate)
 		$PackageName = $Package.Name
 		$PackageVersion = $Package.Version
 		$PackageVerify = $Package.Verify
-		$header = "USUS/2.1"
+		$header = "USUS/2.10001"
 		$WebClient.Headers.Add("user-agent", $header)
 		$checkurl = "https://www.ususcript.com/api/?packagename=" + $PackageName + "&packageversion=" + $PackageVersion
 		
@@ -674,8 +727,6 @@ IF ($Configuration.config.PackageUpdate)
 			$newversion = $WebClient.DownloadString($checkurl)
 			IF ($AutoUpdate -And (!($newversion -like "No Updated versions of *")) -And $newversion -ne $Null)
 			{
-				
-				Start-Sleep 10
 				$updatedpackagelocation = $Configuration.config.packagesrepo.TrimEnd("\") + "\" + $PackageName + ".xml"
 				IF (($SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }).Count -ne 0)
 				{
@@ -773,6 +824,11 @@ Remove-Variable SoftwareMaster
 
 $UnimportedPackages = Get-ChildItem $Configuration.config.packagesrepo -Exclude *Example*, *Template*, PackageMaster.xml -Include *.xml -Recurse | Where-Object { !$_.PSIsContainer}
 
+IF ($Configuration.config.replaceextras)
+{
+	$ReplaceExtras = $True
+}
+
 ForEach ($UnimportedPackage in $UnimportedPackages)
 {
 	[xml]$Package = Get-Content $UnimportedPackage
@@ -802,12 +858,32 @@ ForEach ($UnimportedPackage in $UnimportedPackages)
 		IF ($CurrentVersion -ge $LatestVersion)
 		{
 			Write-Debug "Package $UnimportedPackage already exists in Package Master, skipping..."
+			Remove-Item $UnimportedPackage
 			Remove-Variable CurrentPackage
 			Remove-Variable CurrentVersion
 			Remove-Variable LatestVersion
 			Remove-Variable Package
 			Continue
 		} ELSEIF ($CurrentVersion -lt $LatestVersion) {
+			IF (!($ReplaceExtras))
+			{
+				IF ($CurrentPackage.Extras32)
+				{
+					IF ($Package.package.Extras32)
+					{
+						$Package.package.RemoveChild($Package.package.SelectSingleNode("Extras32")) | Out-Null
+					}
+					$Package.package.AppendChild($Package.ImportNode($CurrentPackage.Extras32,$true)) | Out-Null
+				}
+				IF ($CurrentPackage.Extras64)
+				{
+					IF ($Package.package.Extras64)
+					{
+						$Package.package.RemoveChild($Package.package.SelectSingleNode("Extras64")) | Out-Null
+					}
+					$Package.package.AppendChild($Package.ImportNode($CurrentPackage.Extras64,$true)) | Out-Null
+				}
+			}
 			$CurrentPackage.ParentNode.RemoveChild($CurrentPackage) | Out-Null
 			Write-Output "`r`n`r`n$HumanReadableName Package XML Updated to Version $LatestVersion"
 			Remove-Variable CurrentPackage
@@ -815,6 +891,7 @@ ForEach ($UnimportedPackage in $UnimportedPackages)
 			Remove-Variable HumanReadableName
 			Remove-Variable LatestVersion
 			$PackageMaster.Packages.AppendChild($PackageMaster.ImportNode($Package.Package,$true)) | Out-Null
+
 			Remove-Item $UnimportedPackage
 			$PackageMaster.Save($PackageMasterFile)
 			Remove-Variable Package
