@@ -64,7 +64,7 @@ Config File Changes:
     <PackageUpdate>
       <AutoUpdate>True</AutoUpdate> <!--Change to false to skip auto updates of Packages -->
     </PackageUpdate>
-    <ReplaceExtras>False</ReplaceExtras> <!--Change to true to replace currently existing extras in package files with updated extras -->
+    <ReplaceExtras>True</ReplaceExtras> <!--Remove or comment this line keep currently existing extras in package files when updating packages -->
 
 
 -----
