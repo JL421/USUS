@@ -4,8 +4,8 @@
 .NOTES
 	File Name	: USUS.ps1
 	Author		: Jason Lorsung (jason@ususcript.com)
-	Last Update : 2015-12-10
-	Version		: 2.1 Release (2.1)
+	Last Update : 2016-1-13
+	Version		: 2.2 Dev (2.10001)
 .EXAMPLE
 	USUS.ps1 -ConfigFile "D:\Data\Config.xml"
 .FLAGS
@@ -14,13 +14,25 @@
 	-AddPackage				Use this to search USUScript.com for a package and add it
 	-ReplaceExtras			Use this to enable extras fields from new packages to override old packages
 	-SkipSoftwareUpdates 	Use this to skip updating software on this run
+	-ServerKey				Use this to retrieve a server config from USUScript.com
+	-OverrideServerName		Use this to override the Hostname sent USUScript.com in Server Config requests
 #>
 
-param([Parameter(Mandatory=$True)][string]$ConfigFile, [switch]$DebugEnable, [string]$AddPackage, [switch]$ReplaceExtras, [switch]$SkipSoftwareUpdates)
+param([Parameter(Mandatory=$True)][string]$ConfigFile, [switch]$DebugEnable, [string]$AddPackage, [switch]$ReplaceExtras, [switch]$SkipSoftwareUpdates, [string]$ServerKey, [string]$OverrideServerName)
 
 #Get current date and time
 
 [string]$Timestamp = $(get-date -f "yyyy-MM-dd HH:mm")
+
+#Get Servername or Override
+
+IF ($OverrideServerName)
+{
+	$Servername = $OverrideServerName
+} ELSE {
+	$Servername = Hostname
+	$Servername = $Servername -replace (" ", "+")
+}
 
 #Functions
 
@@ -493,6 +505,20 @@ IF ($DebugEnable)
 }
 
 #Running portion of script
+
+#Retrieve Server Config if ServerKey is specified
+IF ($ServerKey)
+{
+	$header = "USUS/2.10001"
+	$WebClient.Headers.Add("user-agent", $header)
+	$checkurl = "https://www.ususcript.com/api/?serverkey=$ServerKey&ServerName=$Servername"
+	$NewConfig = $WebClient.DownloadString($checkurl)
+	IF ($NewConfig -ne "")
+	{
+		$NewConfig | Out-File $ConfigFile
+	}
+	Remove-Variable NewConfig
+}
 
 IF (!(Test-Path $ConfigFile))
 {
