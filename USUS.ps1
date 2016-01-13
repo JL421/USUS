@@ -4,16 +4,19 @@
 .NOTES
 	File Name	: USUS.ps1
 	Author		: Jason Lorsung (jason@ususcript.com)
-	Last Update : 2015-10-1
-	Version		: 2.0 Release
+	Last Update : 2015-12-10
+	Version		: 2.1 Release (2.1)
 .EXAMPLE
 	USUS.ps1 -ConfigFile "D:\Data\Config.xml"
 .FLAGS
-	-ConfigFile		Use this to specify a Config.XML file for the script to use
-	-DebugEnable	Use this to enable Debug output
+	-ConfigFile				Use this to specify a Config.XML file for the script to use
+	-DebugEnable			Use this to enable Debug output
+	-AddPackage				Use this to search USUScript.com for a package and add it
+	-ReplaceExtras			Use this to enable extras fields from new packages to override old packages
+	-SkipSoftwareUpdates 	Use this to skip updating software on this run
 #>
 
-param([Parameter(Mandatory=$True)][string]$ConfigFile, [switch]$DebugEnable)
+param([Parameter(Mandatory=$True)][string]$ConfigFile, [switch]$DebugEnable, [string]$AddPackage, [switch]$ReplaceExtras, [switch]$SkipSoftwareUpdates)
 
 #Get current date and time
 
@@ -527,8 +530,6 @@ IF (!(Test-Path $Configuration.config.packagesrepo))
 doesn't have access to read it. Please correct this and try again."
 	Exit
 }
-
-
 $PackageMasterFile = $Configuration.config.packagesrepo.TrimEnd("\") + "\PackageMaster.xml"
 IF (!(Test-Path $PackageMasterFile))
 {
@@ -541,7 +542,292 @@ IF (!(Test-Path $PackageMasterFile))
 
 [xml]$PackageMaster = Get-Content $PackageMasterFile
 
+$SoftwareMasterFile = $Configuration.config.softwarerepo.TrimEnd("\") + "\SoftwareMaster.xml"
+IF (!(Test-Path $SoftwareMasterFile))
+{
+	$SoftwareMaster = New-Object System.Xml.XmlDocument
+	$Software = $SoftwareMaster.CreateElement("SoftwarePackages")
+	$SoftwareMaster.AppendChild($Software) | Out-Null
+	$Software.AppendChild($SoftwareMaster.CreateElement("NullSoftware")) | Out-Null
+	$SoftwareMaster.Save($SoftwareMasterFile)
+	Remove-Variable SoftwareMaster
+}
+
+[xml]$SoftwareMaster = Get-Content $SoftwareMasterFile
+
+IF ($Configuration.config.SelfUpdate)
+{
+	$header = "USUS/2.1"
+	$WebClient.Headers.Add("user-agent", $header)
+	$checkurl = "https://www.ususcript.com/api/?selfupdate=true"
+	
+	IF ($Configuration.config.SelfUpdate.AutoUpdate)
+	{
+		$AutoUpdate = $True
+	}
+	
+	IF ($Configuration.config.SelfUpdate.AutoUpdate)
+	{
+		$checkurl = $checkurl + "&autoupdate=true"
+		$AutoUpdate = $True
+	}
+	
+	$newversion = $WebClient.DownloadString($checkurl)
+	
+	IF ($AutoUpdate -And $newversion -ne "No Updated version of USUS available." -And $newversion -ne $Null)
+	{
+		$ScriptLocation = $MyInvocation.InvocationName
+		$relaunchusus = '-ExecutionPolicy Bypass -NoProfile -File "' + $ScriptLocation + '" -ConfigFile "' + $ConfigFile + '"'
+		IF ($SkipSoftwareUpdates)
+		{
+			$relaunchusus = $relaunchusus + " -SkipSoftwareUpdates"
+		}
+		IF ($DebugEnable)
+		{
+			$relaunchusus = $relaunchusus + " -DebugEnable"
+		}
+		Remove-Item $ScriptLocation -Force
+		$newversion | Out-File $ScriptLocation
+		Write-Host "USUS updated!"
+		Start-Process powershell.exe -ArgumentList $relaunchusus
+		Exit
+	} ELSEIF ($newversion -ne "No Updated version of USUS available." -And $newversion -ne $Null) {
+		$newversion = $newversion -split "<br>" | Select-Object -Index 1
+		$newversion = $newversion.TrimStart("Version: ")				
+		IF (($SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq "USUScript" }).Count -ne 0)
+		{
+			$CurrentPackage = $SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq "USUScript" } | Select-Object
+			
+			$CurrentPackage.LatestVersion = $newversion
+			$SoftwareMaster.Save($SoftwareMasterFile)
+			
+		} ELSE {
+			$USUScript = $SoftwareMaster.CreateElement("software")
+			$SoftwareMaster.SoftwarePackages.AppendChild($USUScript) | Out-Null
+			$USUScript.AppendChild($SoftwareMaster.CreateElement("Name")) | Out-Null
+			$USUScript.Name = "USUScript"
+			$USUScript.AppendChild($SoftwareMaster.CreateElement("CurrentVersion")) | Out-Null
+			$USUScript.CurrentVersion = "2.1"
+			$USUScript.AppendChild($SoftwareMaster.CreateElement("LatestVersion")) | Out-Null
+			$USUScript.LatestVersion = $newversion
+			$SoftwareMaster.Save($SoftwareMasterFile)
+		}
+	} ELSE {
+		IF (($SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq "USUScript" }).Count -ne 0)
+		{
+			$CurrentPackage = $SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq "USUScript" } | Select-Object
+		
+			$CurrentPackage.CurrentVersion = "2.1"
+			$CurrentPackage.LatestVersion = "2.1"
+			$SoftwareMaster.Save($SoftwareMasterFile)
+
+		}		
+	}
+	Remove-Variable header
+	Remove-Variable checkurl
+	IF ($newversion)
+	{
+		Remove-Variable newversion
+	}
+	IF ($AutoUpdate)
+	{
+		Remove-Variable AutoUpdate
+	}
+	IF ($CurrentPackage)
+	{
+		Remove-Variable CurrentPackage
+	}
+	IF ($USUScript)
+	{
+		Remove-Variable USUScript
+	}
+}
+
+Remove-Variable PackageMaster
+Remove-Variable SoftwareMaster
+
+[xml]$PackageMaster = Get-Content $PackageMasterFile
+[xml]$SoftwareMaster = Get-Content $SoftwareMasterFile
+
+IF ($AddPackage -ne "")
+{	
+	$Packagestocheck = $AddPackage -Split ","
+	
+	ForEach ($Package in $Packagestocheck)
+	{
+		$header = "USUS/2.1"
+		$WebClient.Headers.Add("user-agent", $header)
+		$checkurl = "https://www.ususcript.com/api/?packagename=" + $Package + "&packageversion=0&autoupdate=true"
+		
+		$newversion = $WebClient.DownloadString($checkurl)
+		IF ((!($newversion -like "No Updated versions of *")) -And $newversion -ne $Null)
+		{
+			$updatedpackagelocation = $Configuration.config.packagesrepo.TrimEnd("\") + "\" + $Package + ".xml"				
+			$newversion | Out-File $updatedpackagelocation
+		} ELSE {
+			Write-Output "No Package named $Package available from USUScript.com"
+			Write-Output "Sorry about that."
+		}
+		
+		Remove-Variable Package
+		Remove-Variable header
+		Remove-Variable checkurl
+		IF ($newversion)
+		{
+			Remove-Variable newversion
+		}
+		IF ($updatedpackagelocation)
+		{
+			Remove-Variable updatedpackagelocation
+		}
+		IF ($CurrentPackage)
+		{
+			Remove-Variable CurrentPackage
+		}
+		IF ($PackageInfo)
+		{
+			Remove-Variable PackageInfo
+		}
+		
+	}
+	Remove-Variable AddPackage
+	Remove-Variable Packagestocheck
+}
+
+Remove-Variable PackageMaster
+Remove-Variable SoftwareMaster
+
+[xml]$PackageMaster = Get-Content $PackageMasterFile
+[xml]$SoftwareMaster = Get-Content $SoftwareMasterFile
+
+
+IF ($Configuration.config.PackageUpdate)
+{
+	IF ($Configuration.config.PackageUpdate.AutoUpdate)
+	{
+		$AutoUpdate = $True
+	}
+	
+	ForEach ($Package in $PackageMaster.Packages.Package)
+	{
+		$PackageName = $Package.Name
+		$PackageVersion = $Package.Version
+		$PackageVerify = $Package.Verify
+		$header = "USUS/2.10001"
+		$WebClient.Headers.Add("user-agent", $header)
+		$checkurl = "https://www.ususcript.com/api/?packagename=" + $PackageName + "&packageversion=" + $PackageVersion
+		
+		IF ($AutoUpdate)
+		{
+			$checkurl = $checkurl + "&autoupdate=true"
+		}
+		
+		IF (!($PackageVerify -like "Private USUS XML Package File"))
+		{
+			$newversion = $WebClient.DownloadString($checkurl)
+			IF ($AutoUpdate -And (!($newversion -like "No Updated versions of *")) -And $newversion -ne $Null)
+			{
+				$updatedpackagelocation = $Configuration.config.packagesrepo.TrimEnd("\") + "\" + $PackageName + ".xml"
+				IF (($SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }).Count -ne 0)
+				{
+					$CurrentPackage = $SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }
+					IF ($CurrentPackage.PackageInfo)
+					{
+						IF ($CurrentPackage.PackageInfo.NewVersion)
+						{
+							$CurrentPackage.PackageInfo.RemoveChild($CurrentPackage.PackageInfo.SelectSingleNode("NewVersion")) | Out-Null
+							$SoftwareMaster.Save($SoftwareMasterFile)
+						}
+					}
+				}
+				
+				$newversion | Out-File $updatedpackagelocation
+			} ELSEIF ((!($newversion -like "No Updated versions of *")) -And $newversion -ne $Null) {
+				$newversion = $newversion -split "<br>" | Select-Object -Index 1
+				$newversion = $newversion.TrimStart("Version: ")
+				
+				IF (($SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }).Count -ne 0)
+				{
+					$CurrentPackage = $SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }
+					
+					IF (!($CurrentPackage.PackageInfo))
+					{
+						$PackageInfo = $SoftwareMaster.CreateElement("PackageInfo")
+						$CurrentPackage.AppendChild($PackageInfo) | Out-Null
+						$PackageInfo.AppendChild($Softwaremaster.CreateElement("NullInfo")) | Out-Null
+					} ELSE {
+						$PackageInfo = $CurrentPackage.PackageInfo
+					}
+					
+					IF (!($PackageInfo.NewVersion))
+					{
+						$PackageInfo.AppendChild($SoftwareMaster.CreateElement("NewVersion")) | Out-Null
+					}
+					
+					$PackageInfo.NewVersion = $newversion
+					$SoftwareMaster.Save($SoftwareMasterFile)
+					
+				} ELSE {
+					Write-Debug "Cannot write record for new version of $PackageName package!"
+					Write-Host "New version of $PackageName package available!"
+				}
+			} ELSE {
+				IF (($SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }).Count -ne 0)
+				{
+					$CurrentPackage = $SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName } | Select-Object
+				
+					IF ($CurrentPackage.PackageInfo)
+					{
+						IF ($CurrentPackage.PackageInfo.NewVersion)
+						{
+							$CurrentPackage.PackageInfo.RemoveChild($CurrentPackage.PackageInfo.SelectSingleNode("NewVersion")) | Out-Null
+							$SoftwareMaster.Save($SoftwareMasterFile)
+						}
+					}
+				}
+			}
+		}
+		Remove-Variable PackageName
+		Remove-Variable PackageVersion
+		Remove-Variable PackageVerify
+		Remove-Variable header
+		Remove-Variable checkurl
+		IF ($newversion)
+		{
+			Remove-Variable newversion
+		}
+		IF ($updatedpackagelocation)
+		{
+			Remove-Variable updatedpackagelocation
+		}
+		IF ($CurrentPackage)
+		{
+			Remove-Variable CurrentPackage
+		}
+		IF ($PackageInfo)
+		{
+			Remove-Variable PackageInfo
+		}
+		
+	}
+	IF ($AutoUpdate)
+	{
+		Remove-Variable AutoUpdate
+	}
+
+}
+
+Remove-Variable PackageMaster
+Remove-Variable SoftwareMaster
+
+[xml]$PackageMaster = Get-Content $PackageMasterFile
+
 $UnimportedPackages = Get-ChildItem $Configuration.config.packagesrepo -Exclude *Example*, *Template*, PackageMaster.xml -Include *.xml -Recurse | Where-Object { !$_.PSIsContainer}
+
+IF ($Configuration.config.replaceextras)
+{
+	$ReplaceExtras = $True
+}
 
 ForEach ($UnimportedPackage in $UnimportedPackages)
 {
@@ -552,7 +838,7 @@ ForEach ($UnimportedPackage in $UnimportedPackages)
 		Remove-Variable Package
 		Continue
 	}
-	IF (($Package.SelectNodes("//Verify") | Where-Object { $_.InnerText -eq "USUS XML Package File" -And $_.InnerText -ne $Null}) -eq $Null)
+	IF (($Package.SelectNodes("//Verify") | Where-Object { $_.InnerText -eq "USUS XML Package File" -And $_.InnerText -ne $Null -Or ($_.InnerText -eq "Private USUS XML Package File" -And $_.InnerText -ne $Null)}) -eq $Null)
 	{
 		Write-Debug "Package $UnimportedPackage doesn't seem to be valid, skipping..."
 		Remove-Variable Package
@@ -572,12 +858,32 @@ ForEach ($UnimportedPackage in $UnimportedPackages)
 		IF ($CurrentVersion -ge $LatestVersion)
 		{
 			Write-Debug "Package $UnimportedPackage already exists in Package Master, skipping..."
+			Remove-Item $UnimportedPackage
 			Remove-Variable CurrentPackage
 			Remove-Variable CurrentVersion
 			Remove-Variable LatestVersion
 			Remove-Variable Package
 			Continue
 		} ELSEIF ($CurrentVersion -lt $LatestVersion) {
+			IF (!($ReplaceExtras))
+			{
+				IF ($CurrentPackage.Extras32)
+				{
+					IF ($Package.package.Extras32)
+					{
+						$Package.package.RemoveChild($Package.package.SelectSingleNode("Extras32")) | Out-Null
+					}
+					$Package.package.AppendChild($Package.ImportNode($CurrentPackage.Extras32,$true)) | Out-Null
+				}
+				IF ($CurrentPackage.Extras64)
+				{
+					IF ($Package.package.Extras64)
+					{
+						$Package.package.RemoveChild($Package.package.SelectSingleNode("Extras64")) | Out-Null
+					}
+					$Package.package.AppendChild($Package.ImportNode($CurrentPackage.Extras64,$true)) | Out-Null
+				}
+			}
 			$CurrentPackage.ParentNode.RemoveChild($CurrentPackage) | Out-Null
 			Write-Output "`r`n`r`n$HumanReadableName Package XML Updated to Version $LatestVersion"
 			Remove-Variable CurrentPackage
@@ -585,6 +891,7 @@ ForEach ($UnimportedPackage in $UnimportedPackages)
 			Remove-Variable HumanReadableName
 			Remove-Variable LatestVersion
 			$PackageMaster.Packages.AppendChild($PackageMaster.ImportNode($Package.Package,$true)) | Out-Null
+
 			Remove-Item $UnimportedPackage
 			$PackageMaster.Save($PackageMasterFile)
 			Remove-Variable Package
@@ -601,17 +908,6 @@ ForEach ($UnimportedPackage in $UnimportedPackages)
 	Remove-Variable HumanReadableName
 	Remove-Variable Package
 	$Resort = $True
-}
-
-$SoftwareMasterFile = $Configuration.config.softwarerepo.TrimEnd("\") + "\SoftwareMaster.xml"
-IF (!(Test-Path $SoftwareMasterFile))
-{
-	$SoftwareMaster = New-Object System.Xml.XmlDocument
-	$Software = $SoftwareMaster.CreateElement("SoftwarePackages")
-	$SoftwareMaster.AppendChild($Software) | Out-Null
-	$Software.AppendChild($SoftwareMaster.CreateElement("NullSoftware")) | Out-Null
-	$SoftwareMaster.Save($SoftwareMasterFile)
-	Remove-Variable SoftwareMaster
 }
 
 IF ($Resort)
@@ -647,157 +943,167 @@ IF ($Configuration.config.ArchiveOldVersions)
 
 Write-Output "`r`n`r`n"
 
-ForEach ($Package in $PackageMaster.Packages.Package)
-{	
-	$PackageName = $Package.Name
-	$HumanReadableName = $Package.HumanReadableName
-	
-	IF (!(($SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }).Count -ne 0))
-	{
-		$Software = $SoftwareMaster.CreateElement("software")
-		$SoftwareMaster.SoftwarePackages.AppendChild($Software) | Out-Null
-		$Software.AppendChild($SoftwareMaster.CreateElement("Name")) | Out-Null
-		$Software.Name = $PackageName
-		$Software.AppendChild($SoftwareMaster.CreateElement("HumanReadableName")) | Out-Null
-		$Software.HumanReadableName = $HumanReadableName
-		IF ($Package.IsMSI)
+
+IF ((!$SkipSoftwareUpdates))
+{
+	ForEach ($Package in $PackageMaster.Packages.Package)
+	{	
+		$PackageName = $Package.Name
+		$HumanReadableName = $Package.HumanReadableName
+		
+		IF (!(($SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }).Count -ne 0))
 		{
-			$Software.AppendChild($SoftwareMaster.CreateElement("IsMSI")) | Out-Null
-			$Software.IsMSI = "True"
+			$Software = $SoftwareMaster.CreateElement("software")
+			$SoftwareMaster.SoftwarePackages.AppendChild($Software) | Out-Null
+			$Software.AppendChild($SoftwareMaster.CreateElement("Name")) | Out-Null
+			$Software.Name = $PackageName
+			$Software.AppendChild($SoftwareMaster.CreateElement("HumanReadableName")) | Out-Null
+			$Software.HumanReadableName = $HumanReadableName
+			IF ($Package.IsMSI)
+			{
+				$Software.AppendChild($SoftwareMaster.CreateElement("IsMSI")) | Out-Null
+				$Software.IsMSI = "True"
+			}
+			$SoftwareMaster.Save($SoftwareMasterFile)
+		} ELSE {
+			$Software = $SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }
 		}
-		$SoftwareMaster.Save($SoftwareMasterFile)
-	} ELSE {
-		$Software = $SoftwareMaster.SoftwarePackages.software | Where-Object { $_.Name -eq $PackageName }
-	}
-	
-	IF ($Package.CustomPath)
-	{
-		$LocalRepo = $Package.CustomPath
+		
+		IF ($Package.CustomPath)
+		{
+			$LocalRepo = $Package.CustomPath
+			IF (!(Test-Path $LocalRepo))
+			{
+				Write-Output "Software Repository $LocalRepo doesn't seem to exist.
+				Please create this location or run this script with the credentials required to access it."
+				Continue
+			}
+		} ELSE {
+			$LocalRepo = $Configuration.config.softwarerepo
+		}
+		
+		$LocalRepo = $LocalRepo + "\" + $Package.Name
+		
 		IF (!(Test-Path $LocalRepo))
 		{
-			Write-Output "Software Repository $LocalRepo doesn't seem to exist.
-			Please create this location or run this script with the credentials required to access it."
-			Continue
+			Try
+			{
+				New-Item $LocalRepo -Type Directory -ErrorAction Stop | Out-Null
+			} Catch {
+				Write-Output "Could not create program directory of $LocalRepo.
+	Please ensure that this script has Write permissions to this location, and try again.`r`n"
+			} 
 		}
-	} ELSE {
-		$LocalRepo = $Configuration.config.softwarerepo
-	}
-	
-	$LocalRepo = $LocalRepo + "\" + $Package.Name
-	
-	IF (!(Test-Path $LocalRepo))
-	{
-		Try
-		{
-			New-Item $LocalRepo -Type Directory -ErrorAction Stop | Out-Null
-		} Catch {
-			Write-Output "Could not create program directory of $LocalRepo.
-Please ensure that this script has Write permissions to this location, and try again.`r`n"
-		} 
-	}
-		
-	$CurrentInstaller = $LocalRepo + "\" + $Package.Name
-	
-	IF ($Package.DownloadURL32 -Or $Package.URLGenerator32)
-	{
-		
-		$CurrentInstaller32 = $CurrentInstaller + "-x32"
-		$InstallerName32 = $Package.Name + "-x32"
-		$templocation32 = $env:TEMP + "\" + $Package.Name + "-x32"
-		IF ($Package.IsMSI)
-		{
-			$CurrentInstaller32 = $CurrentInstaller32 + ".msi"
-			$InstallerName32 = $InstallerName32 + ".msi"
-			$templocation32 = $templocation32 + ".msi"
 			
-		} ELSE {
-			$CurrentInstaller32 = $CurrentInstaller32 + ".exe"
-			$InstallerName32 = $InstallerName32 + ".exe"
-			$templocation32 = $templocation32 + ".exe"
+		$CurrentInstaller = $LocalRepo + "\" + $Package.Name
+		
+		IF ($Package.DownloadURL32 -Or $Package.URLGenerator32)
+		{
+			
+			$CurrentInstaller32 = $CurrentInstaller + "-x32"
+			$InstallerName32 = $Package.Name + "-x32"
+			$templocation32 = $env:TEMP + "\" + $Package.Name + "-x32"
+			IF ($Package.IsMSI)
+			{
+				$CurrentInstaller32 = $CurrentInstaller32 + ".msi"
+				$InstallerName32 = $InstallerName32 + ".msi"
+				$templocation32 = $templocation32 + ".msi"
+				
+			} ELSE {
+				$CurrentInstaller32 = $CurrentInstaller32 + ".exe"
+				$InstallerName32 = $InstallerName32 + ".exe"
+				$templocation32 = $templocation32 + ".exe"
+			}
+			
+			$GetSoftwareVersionResults = Get-SoftwareVersion -BitCount "32" -CurrentInstaller $CurrentInstaller32 -Package $Package -Software $Software
+			IF ($GetSoftwareVersionResults -like "Error*" -Or $GetSoftwareVersionResults -like "Exception*")
+			{
+				Write-Debug $GetSoftwareVersionResults
+				$CurrentVersion = "0"
+				$ForceDownload = $True
+			} ELSE {
+				$CurrentVersion = $GetSoftwareVersionResults[0]
+				$ForceDownload = $GetSoftwareVersionResults[1]
+			}
+			
+			$GenerateURLResults = Generate-URL -BitCount "32" -CurrentVersion $CurrentVersion -Package $Package -WebClient $WebClient
+			$DownloadURL = $GenerateURLResults[0]
+			IF ($GenerateURLResults[1] -eq "No Version Retrieved") {
+				$LatestVersion = "This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them."
+				$LatestVersion = $Null
+			} ELSE {
+				$LatestVersion = $GenerateURLResults[1]
+			}
+			
+			IF ($ForceDownload)
+			{
+				$LatestVersion = $Null
+			}
+			
+			$LatestVersion = Get-LatestInstaller -CurrentVersion $CurentVersion -DownloadURL $DownloadURL -LatestVersion $LatestVersion -Package $Package -templocation $templocation32
+			
+			IF ($LatestVersion -eq "This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them.")
+			{
+				Write-Debug "Wow. I mean WOW! Please find this developer and hit them. HARD. Their version string was actually 'This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them.'. There are no words."
+			}
+			
+			Update-Software -ArchiveOldVersions $ArchiveOldVersions -BitCount "32" -CurrentInstaller $CurrentInstaller32 -CurrentVersion $CurrentVersion -HumanReadableName $HumanReadableName -InstallerName $InstallerName32 -LatestVersion $LatestVersion -LocalRepo $LocalRepo -Package $Package -Software $Software -SoftwareMaster $SoftwareMaster -SoftwareMasterFile $SoftwareMasterFile -templocation $templocation32
+			
 		}
 		
-		$GetSoftwareVersionResults = Get-SoftwareVersion -BitCount "32" -CurrentInstaller $CurrentInstaller32 -Package $Package -Software $Software
-		IF ($GetSoftwareVersionResults -like "Error*" -Or $GetSoftwareVersionResults -like "Exception*")
+		IF ($Package.DownloadURL64 -Or $Package.URLGenerator64)
 		{
-			Write-Debug $GetSoftwareVersionResults
-			$CurrentVersion = "0"
-			$ForceDownload = $True
-		} ELSE {
+			
+			$CurrentInstaller64 = $CurrentInstaller + "-x64"
+			$InstallerName64 = $Package.Name + "-x64"
+			$templocation64 = $env:TEMP + "\" + $Package.Name + "-x64"
+			IF ($Package.IsMSI)
+			{
+				$CurrentInstaller64 = $CurrentInstaller64 + ".msi"
+				$InstallerName64 = $InstallerName64 + ".msi"
+				$templocation64 = $templocation64 + ".msi"
+				
+			} ELSE {
+				$CurrentInstaller64 = $CurrentInstaller64 + ".exe"
+				$InstallerName64 = $InstallerName64 + ".exe"
+				$templocation64 = $templocation64 + ".exe"
+			}
+			
+			$GetSoftwareVersionResults = Get-SoftwareVersion -BitCount "64" -CurrentInstaller $CurrentInstaller64 -Package $Package -Software $Software
 			$CurrentVersion = $GetSoftwareVersionResults[0]
 			$ForceDownload = $GetSoftwareVersionResults[1]
-		}
-		
-		$GenerateURLResults = Generate-URL -BitCount "32" -CurrentVersion $CurrentVersion -Package $Package -WebClient $WebClient
-		$DownloadURL = $GenerateURLResults[0]
-		IF ($GenerateURLResults[1] -eq "No Version Retrieved") {
-			$LatestVersion = "This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them."
-			$LatestVersion = $Null
-		} ELSE {
-			$LatestVersion = $GenerateURLResults[1]
-		}
-		
-		IF ($ForceDownload)
-		{
-			$LatestVersion = $Null
-		}
-		
-		$LatestVersion = Get-LatestInstaller -CurrentVersion $CurentVersion -DownloadURL $DownloadURL -LatestVersion $LatestVersion -Package $Package -templocation $templocation32
-		
-		IF ($LatestVersion -eq "This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them.")
-		{
-			Write-Debug "Wow. I mean WOW! Please find this developer and hit them. HARD. Their version string was actually 'This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them.'. There are no words."
-		}
-		
-		Update-Software -ArchiveOldVersions $ArchiveOldVersions -BitCount "32" -CurrentInstaller $CurrentInstaller32 -CurrentVersion $CurrentVersion -HumanReadableName $HumanReadableName -InstallerName $InstallerName32 -LatestVersion $LatestVersion -LocalRepo $LocalRepo -Package $Package -Software $Software -SoftwareMaster $SoftwareMaster -SoftwareMasterFile $SoftwareMasterFile -templocation $templocation32
-		
-	}
-	
-	IF ($Package.DownloadURL64 -Or $Package.URLGenerator64)
-	{
-		
-		$CurrentInstaller64 = $CurrentInstaller + "-x64"
-		$InstallerName64 = $Package.Name + "-x64"
-		$templocation64 = $env:TEMP + "\" + $Package.Name + "-x64"
-		IF ($Package.IsMSI)
-		{
-			$CurrentInstaller64 = $CurrentInstaller64 + ".msi"
-			$InstallerName64 = $InstallerName64 + ".msi"
-			$templocation64 = $templocation64 + ".msi"
 			
-		} ELSE {
-			$CurrentInstaller64 = $CurrentInstaller64 + ".exe"
-			$InstallerName64 = $InstallerName64 + ".exe"
-			$templocation64 = $templocation64 + ".exe"
-		}
-		
-		$GetSoftwareVersionResults = Get-SoftwareVersion -BitCount "64" -CurrentInstaller $CurrentInstaller64 -Package $Package -Software $Software
-		$CurrentVersion = $GetSoftwareVersionResults[0]
-		$ForceDownload = $GetSoftwareVersionResults[1]
-		
-		$GenerateURLResults = Generate-URL -BitCount "64" -CurrentVersion $CurrentVersion -Package $Package -WebClient $WebClient
-		$DownloadURL = $GenerateURLResults[0]
-		IF ($GenerateURLResults[1] -eq "No Version Retrieved") {
-			$LatestVersion = "This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them."
-			$LatestVersion = $Null
-		} ELSE {
-			$LatestVersion = $GenerateURLResults[1]
-		}
-		
-		IF ($ForceDownload)
-		{
-			$LatestVersion = $Null
-		}
-		
-		$LatestVersion = Get-LatestInstaller -CurrentVersion $CurentVersion -DownloadURL $DownloadURL -ForceDownload $ForceDownload -LatestVersion $LatestVersion -Package $Package -templocation $templocation64
-		
-		IF ($LatestVersion -eq "This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them.")
-		{
-			Write-Debug "Wow. I mean WOW! Please find this developer and hit them. HARD. Their version string was actually 'This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them.'. There are no words."
-		}
-		
-		Update-Software -ArchiveOldVersions $ArchiveOldVersions -BitCount "64" -CurrentInstaller $CurrentInstaller64 -CurrentVersion $CurrentVersion -HumanReadableName $HumanReadableName -InstallerName $InstallerName64 -LatestVersion $LatestVersion -LocalRepo $LocalRepo -Package $Package -Software $Software -SoftwareMaster $SoftwareMaster -SoftwareMasterFile $SoftwareMasterFile -templocation $templocation64
-		
-	}	
+			$GenerateURLResults = Generate-URL -BitCount "64" -CurrentVersion $CurrentVersion -Package $Package -WebClient $WebClient
+			$DownloadURL = $GenerateURLResults[0]
+			IF ($GenerateURLResults[1] -eq "No Version Retrieved") {
+				$LatestVersion = "This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them."
+				$LatestVersion = $Null
+			} ELSE {
+				$LatestVersion = $GenerateURLResults[1]
+			}
+			
+			IF ($ForceDownload)
+			{
+				$LatestVersion = $Null
+			}
+			
+			$LatestVersion = Get-LatestInstaller -CurrentVersion $CurentVersion -DownloadURL $DownloadURL -ForceDownload $ForceDownload -LatestVersion $LatestVersion -Package $Package -templocation $templocation64
+			
+			IF ($LatestVersion -eq "This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them.")
+			{
+				Write-Debug "Wow. I mean WOW! Please find this developer and hit them. HARD. Their version string was actually 'This should never match anything ever. Period. If it does, someone has gone HORRIBLY wrong in their versioning scheme. Hit Them.'. There are no words."
+			}
+			
+			Update-Software -ArchiveOldVersions $ArchiveOldVersions -BitCount "64" -CurrentInstaller $CurrentInstaller64 -CurrentVersion $CurrentVersion -HumanReadableName $HumanReadableName -InstallerName $InstallerName64 -LatestVersion $LatestVersion -LocalRepo $LocalRepo -Package $Package -Software $Software -SoftwareMaster $SoftwareMaster -SoftwareMasterFile $SoftwareMasterFile -templocation $templocation64
+			
+			IF ($VersionURL)
+			{
+				Remove-Variable VersionURL
+			}
+		}	
+	}
+} ELSE {
+	Write-Debug "Skipping Software Updates!"
 }
 
 IF ($Resort)
